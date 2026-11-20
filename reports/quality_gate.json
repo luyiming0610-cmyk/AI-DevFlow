@@ -1,0 +1,19 @@
+{
+  "timestamp_utc": "2026-11-20T11:07:34.426520+00:00",
+  "artifact": "workspace\\generated\\analyzer.py",
+  "sha256": "afe43c94161abbdec53196548c8ee800aaabdce789930ae400aaf1e802ba05c6",
+  "checks": {
+    "python_syntax": true,
+    "basic_security_scan": true,
+    "ruff_lint": true,
+    "pytest": true
+  },
+  "details": {
+    "python_syntax": "PASS",
+    "basic_security_scan": "PASS",
+    "ruff_lint": "All checks passed!",
+    "pytest": "PASS"
+  },
+  "passed": true,
+  "warning": "Static checks are not a security sandbox. Untrusted AI code must not be executed without appropriate isolation and review."
+}

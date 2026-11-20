@@ -1,0 +1,16 @@
+{
+  "artifact": "workspace\\generated\\analyzer.py",
+  "sha256": "afe43c94161abbdec53196548c8ee800aaabdce789930ae400aaf1e802ba05c6",
+  "quality_gate_passed": true,
+  "status": "PENDING",
+  "reviewer": null,
+  "approved_at_utc": null,
+  "checklist": [
+    "Read the generated source code",
+    "Confirm the change meets the requirement",
+    "Inspect security and permission boundaries",
+    "Review the test results",
+    "Confirm no unintended changes"
+  ],
+  "production_deployment": "NOT_PERFORMED"
+}
