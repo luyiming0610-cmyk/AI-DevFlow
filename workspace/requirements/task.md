@@ -1,42 +1,52 @@
 
-# Event Image Upload Log Analyzer
+# 赛事影像上传日志分析工具
 
-## Business Background
+## 一、业务背景
 
-A sports event image platform needs an internal tool
-to analyze image upload logs.
+某赛事影像平台需要一款内部日志分析工具，
+用于统计赛事照片上传的成功、失败及异常情况。
 
-## Requirements
+本任务采用模拟日志，不使用真实客户数据。
 
-Build a Python log analysis tool that:
+## 二、功能需求
 
-1. Reads event upload logs from a text file.
-2. Counts the total number of valid records.
-3. Counts successful and failed uploads.
-4. Groups upload failures by error type.
-5. Groups records by event ID.
-6. Handles empty lines and malformed records.
-7. Produces JSON and Markdown reports.
+使用 Python 开发日志分析程序，实现：
 
-## Example Input
+1. 读取文本格式的上传日志。
+2. 统计有效日志总数。
+3. 统计上传成功次数。
+4. 统计上传失败次数。
+5. 按失败原因分类统计。
+6. 按赛事编号统计日志数量。
+7. 识别格式错误及非法时间戳。
+8. 输出结构化统计结果。
+
+## 三、输入示例
 
 2026-11-20 09:01:12 INFO event_001 upload_success
 2026-11-20 09:02:15 ERROR event_001 upload_timeout
 2026-11-20 09:03:21 ERROR event_002 connection_failed
 2026-11-20 09:04:10 INFO event_002 upload_success
 
-## Acceptance Criteria
+## 四、验收标准
 
-- Valid records are parsed correctly.
-- Invalid records do not crash the program.
-- Success and failure counts are accurate.
-- Failure categories are reported.
-- Automated unit tests are provided.
-- The tool can be executed from the command line.
+- 有效日志能够正确识别。
+- 成功和失败数量统计准确。
+- 异常记录不能导致程序崩溃。
+- 非法日期必须识别为无效记录。
+- 所有验收测试能够重复运行。
+- 修复 Bug 后不得破坏已有功能。
 
-## Constraints
+## 五、技术及安全约束
 
-- Python 3.12
-- No production credentials
-- No real customer data
-- No network access required by the generated tool
+- 使用 Python 3.12。
+- 核心函数为 analyze_text(text: str) -> dict。
+- 保留原有统计结果字段。
+- 不使用真实客户信息。
+- 不使用生产环境密钥。
+- 不允许自动部署到生产环境。
+
+## 六、交付要求
+
+提供 Python 源代码、自动化测试、
+修复过程记录、质量检查结果及人工审核请求。

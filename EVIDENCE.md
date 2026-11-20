@@ -1,177 +1,171 @@
+# AI DevFlow｜研发流水线验证证据
 
-# AI DevFlow — EVIDENCE
+## 一、项目与笔试要求的对应关系
 
-## 1. Alignment with Part A
+本项目对应 B11《组建 AI 研发团队》笔试题，重点验证 Part A 第四章“研发工作流与质量门禁”、第五章“评估体系”和第七章“风险及权限边界”。
 
-This MVP implements the core workflow described in
-Chapter 4 of `01_Team_Proposal.md`:
+**MVP 业务场景：** 赛事影像上传日志分析工具。
 
-Requirement -> Planning -> Code Generation ->
-Testing -> Failure Handling -> Quality Gate ->
-Human Review Request.
+核心流程：
 
-The prototype also demonstrates the evaluation
-and governance concepts in Chapters 5 and 7.
+需求读取 → 代码生成 → 自动测试 → 失败处理 → 回归验证 → 质量门禁 → 人工审核。
 
-## 2. Execution Environment
+当前提供 MOCK 本地演示及单独的 DeepSeek 真实修复实验，两者的结果分别记录。
 
-- OS: Windows
-- Python: 3.12.0
-- Test framework: Pytest 9.2.0
-- Code quality: Ruff
-- Version control: Git
-- Execution mode: MOCK
+## 二、运行环境
 
-The MOCK mode uses predefined code and a
-deterministic repair fixture. It does not call
-the language model.
-
-## 3. Reproduction Commands
-
-Install dependencies:
-
-    python -m pip install -r requirements.txt
-
-Run the pipeline:
-
-    python main.py
-
-Run regression tests:
-
-    python -m pytest tests -v
-
-## 4. Verified Test Results
-
-### Before repair
-
-Actual result:
-
-- test_upload_statistics: PASSED
-- test_malformed_logs: PASSED
-- test_reject_invalid_timestamp: FAILED
-
-Summary: 2 passed, 1 failed.
-
-Failure:
-
-    assert result["total_records"] == 0
-    AssertionError: assert 1 == 0
-
-Cause:
-
-The initial analyzer does not correctly reject
-an invalid date such as 2026-99-99.
-
-Evidence:
-
-`reports/before_repair_pytest.txt`
-
-### Failure Response
-
-The MOCK Repair module recognized the failing
-timestamp validation test and applied a
-predefined correction.
-
-The correction added datetime validation.
-Existing test assertions were not changed.
-
-This demonstrates deterministic failure
-handling, NOT autonomous LLM repair.
-
-### After repair
-
-Actual result:
-
-- test_upload_statistics: PASSED
-- test_malformed_logs: PASSED
-- test_reject_invalid_timestamp: PASSED
-
-Summary: 3 passed.
-
-Evidence:
-
-`reports/after_repair_pytest.txt`
-
-## 5. Quality Gate Evidence
-
-The following checks passed:
-
-| Check | Result |
+| 项目 | 实际配置 |
 |---|---|
-| Python syntax | PASS |
-| Basic static security rules | PASS |
-| Ruff lint | PASS |
-| Pytest regression | PASS |
+| 操作系统 | Windows |
+| Python | 3.12.0 |
+| Pytest | 9.2.0 |
+| 代码检查 | Ruff |
+| 版本管理 | Git |
+| 可视化 | Streamlit |
+| 大模型 | DeepSeek |
+| 本地演示 | MOCK |
 
-Evidence:
+## 三、运行和复现方法
 
-`reports/quality_gate.json`
+安装依赖：
 
-These static checks are not a security sandbox.
+```powershell
+python -m pip install -r requirements.txt
+```
 
-## 6. Human Review
+运行本地流水线：
 
-The pipeline generated:
+```powershell
+python main.py
+```
 
-`reports/review_request.json`
+运行自动测试：
 
-Current verified status:
+```powershell
+python -m pytest tests -v
+```
 
-PENDING
+打开可视化界面：
 
-The request contains the source file SHA256,
-quality gate status, and review checklist.
+```powershell
+python -m streamlit run dashboard.py
+```
 
-Human approval has not yet been performed.
-No production deployment was performed.
+以上本地流程不需要 API Key。真实模型实验需要额外配置自己的 API Key。
 
-## 7. Git Evidence
+## 四、测试失败与修复验证
 
-Verified local commits:
+### 4.1 初次测试
 
-- `57abd55` — Initial Agent pipeline
-- `0f7ac1c` — CI workflow configuration
-- `c457157` — Seven-chapter proposal
+初始日志分析程序未正确校验日期的有效性。
 
-GitHub Actions execution is not yet verified.
-Git rollback has not yet been demonstrated.
+当输入 `2026-99-99` 时，程序将无效日期错误地计入有效上传记录。
 
-## 8. Model API Status
+实际测试结果：
 
-Provider: DeepSeek
+| 测试用例 | 结果 |
+|---|---|
+| 上传成功与失败统计 | 通过 |
+| 异常格式日志处理 | 通过 |
+| 非法时间戳识别 | 失败 |
 
-An API request was observed in the provider
-usage dashboard, but the earlier application
-attempt returned empty content.
+**首次测试：2 项通过，1 项失败。**
 
-A successful real-model planning, coding,
-and autonomous repair workflow has NOT yet
-been verified.
+原始证据：`reports/before_repair_pytest.txt`
 
-The final submission must distinguish
-API-generated results from MOCK fixtures.
+### 4.2 失败响应
 
-API credentials are excluded from source control.
+系统读取真实 Pytest 失败输出，识别出日期校验缺陷。
 
-## 9. Current Limitations
+在 MOCK 模式下，Repair 模块应用预设的确定性修复补丁，在日志解析逻辑中增加日期有效性检查。
 
-- MOCK repair is deterministic.
-- Real-model repair is not yet verified.
-- No production-grade execution sandbox.
-- No automatic production deployment.
-- Human review remains mandatory.
-- CI requires an actual GitHub run to verify.
-- The 6-week to 2-week delivery improvement
-  is a future target, not an MVP result.
+此过程没有调用大模型，不属于真实 AI 自主修复。
 
-## 10. Reference Sources
+### 4.3 修复后的回归测试
 
-- Python: https://docs.python.org/3/
-- Pytest: https://docs.pytest.org/
-- Ruff: https://docs.astral.sh/ruff/
-- Git: https://git-scm.com/docs
-- GitHub Actions: https://docs.github.com/actions
-- DeepSeek API: https://api-docs.deepseek.com/
+系统使用原有三个测试用例重新执行验证，未修改测试断言。
 
-These sources should be cited only to the extent
-they were actually consulted or used.
+**回归测试：3 项通过。**
+
+原始证据：`reports/after_repair_pytest.txt`
+
+这一实验验证了测试失败、错误响应和修复后回归验证的流程可复现。
+
+## 五、质量门禁
+
+| 检查项目 | 验证结果 |
+|---|---|
+| Python 语法检查 | 通过 |
+| 基础安全规则扫描 | 通过 |
+| Ruff 静态代码检查 | 通过 |
+| Pytest 自动化回归测试 | 通过 |
+
+机器可读记录：`reports/quality_gate.json`
+
+上述扫描不等同于完整安全审计或安全沙箱，不能据此证明代码不存在所有安全问题。
+
+## 六、真实 DeepSeek API 修复实验
+
+本项目另外执行了一次真实大模型修复实验。
+
+实验输入包括初始 Python 代码和真实 Pytest 失败日志。
+
+| 项目 | 实际记录 |
+|---|---|
+| 模型 | deepseek-flash |
+| 输入 Token | 667 |
+| 输出 Token | 281 |
+| 总 Token | 948 |
+| 调用状态 | 成功生成修复候选 |
+| Python 语法检查 | 通过 |
+| Ruff 静态检查 | 通过 |
+| 功能回归测试 | 尚未验证 |
+| 人工审核 | 待审核 |
+
+真实模型生成的候选代码添加了 `datetime.strptime` 日期校验逻辑。
+
+候选代码保存在本地独立实验目录，未覆盖已经通过 MOCK 测试的正式示例代码。
+
+目前不能将“候选生成成功”认定为“完整修复成功”。模型调用费用应以实际 API 账单为准，不根据 Token 数量自行编造金额。
+
+## 七、人工审核与权限边界
+
+质量门禁通过后，系统生成 `review_request.json`，其初始审核状态为 `PENDING`。
+
+审核请求包含代码 SHA256、质量检查结果和人工审核清单。
+
+当前流程不会自动合并未经审批的代码，也不会自动部署到生产环境。
+
+## 八、Git 版本管理
+
+已验证的本地提交记录：
+
+| 提交标识 | 内容 |
+|---|---|
+| `57abd55` | Agent 流水线与质量门禁 |
+| `0f7ac1c` | CI 配置 |
+| `c457157` | 七章团队方案 |
+| `8835eb7` | 研发验证证据初稿 |
+
+GitHub Actions 已编写配置，但尚不能宣称线上运行成功，需在代码上传后以实际 CI 执行结果为准。
+
+## 九、项目局限及后续改进
+
+- MOCK 模式使用预设开发和修复逻辑，不支持任意需求的自主研发。
+- 真实模型修复候选仍需功能回归验证。
+- 尚未完成生产级安全隔离环境。
+- 人工审核不能由 Agent 自动代替。
+- 本 MVP 未实际部署至生产环境。
+- 6 周缩短到 2 周是 Part A 的企业实施目标，不是当前 MVP 已经实现的效率提升结果。
+
+## 十、参考资料
+
+- Python 官方文档：https://docs.python.org/3/
+- Pytest 官方文档：https://docs.pytest.org/
+- Ruff 官方文档：https://docs.astral.sh/ruff/
+- Git 官方文档：https://git-scm.com/docs
+- GitHub Actions：https://docs.github.com/actions
+- DeepSeek API：https://api-docs.deepseek.com/
+- Streamlit：https://docs.streamlit.io/
+
+以上证据以实际代码、测试输出和运行记录为依据。最终提交前应补充新增的验证结果，并检查引用清单与实际使用资料一致。

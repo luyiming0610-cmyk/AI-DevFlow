@@ -1,0 +1,13 @@
+{
+  "model": "deepseek-flash",
+  "source": "DeepSeek API repair candidate",
+  "candidate_sha256": "e094a59cbe7e0474c4dcd249a7b8e4181f892c0bad8e2ad51bfe7d0e2ed449db",
+  "test_suite": "tests/test_analyzer.py",
+  "tests_executed": true,
+  "test_exit_code": 0,
+  "passed_count": 3,
+  "validation_status": "PASSED",
+  "human_review": "PENDING",
+  "production_deployment": false,
+  "test_log": "reports/api_repair_pytest.txt"
+}

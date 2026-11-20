@@ -16,4 +16,4 @@ tests\test_analyzer.py:48: in test_reject_invalid_timestamp
 E   assert 1 == 0
 =========================== short test summary info ===========================
 FAILED tests/test_analyzer.py::test_reject_invalid_timestamp - assert 1 == 0
-========================= 1 failed, 2 passed in 0.21s =========================
+========================= 1 failed, 2 passed in 0.22s =========================

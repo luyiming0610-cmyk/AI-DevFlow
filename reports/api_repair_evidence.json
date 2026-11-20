@@ -1,0 +1,17 @@
+{
+  "timestamp_utc": "2026-11-20T11:39:06.888518+00:00",
+  "mode": "api",
+  "model": "deepseek-flash",
+  "status": "CANDIDATE_GENERATED",
+  "message": "API repair candidate generated. Syntax checked. Execution and human review pending.",
+  "original_sha256": "1b2135c8f97a5e3458beb9f2a50da5fb55c5972c7285a10079b621527e8d0b16",
+  "candidate_sha256": "e094a59cbe7e0474c4dcd249a7b8e4181f892c0bad8e2ad51bfe7d0e2ed449db",
+  "usage": {
+    "prompt_tokens": 667,
+    "completion_tokens": 281,
+    "total_tokens": 948
+  },
+  "tests_executed": false,
+  "human_review": "PENDING",
+  "production_deployment": false
+}
