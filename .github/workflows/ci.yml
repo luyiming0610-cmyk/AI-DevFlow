@@ -6,19 +6,23 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  validate:
+  engineering-tests:
+    name: Python engineering tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     env:
       AI_MODE: mock
 
     steps:
-      - name: Checkout code
+      - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Setup Python
+      - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -26,16 +30,18 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
 
-      - name: Validate Python syntax
-        run: python -m compileall -q main.py agents core review.py
+      - name: Compile Python source
+        run: |
+          python -m compileall -q agents core tests experiments
+          python -m py_compile main.py dashboard.py review.py
 
-      - name: Run complete pipeline
+      - name: Run legacy MOCK pipeline
         run: python main.py
 
-      - name: Run regression tests
+      - name: Run engineering tests
         run: python -m pytest tests -v
 
-      - name: Verify quality gates
+      - name: Verify MOCK quality gate
         run: |
           python - <<'PY'
           import json
@@ -44,24 +50,18 @@ jobs:
           root = Path("reports")
 
           gate = json.loads(
-              (root / "quality_gate.json").read_text(
-                  encoding="utf-8"
-              )
+              (root / "quality_gate.json").read_text(encoding="utf-8")
           )
-
           review = json.loads(
-              (root / "review_request.json").read_text(
-                  encoding="utf-8"
-              )
+              (root / "review_request.json").read_text(encoding="utf-8")
           )
 
-          before = (
-              root / "before_repair_pytest.txt"
-          ).read_text(encoding="utf-8")
-
-          after = (
-              root / "after_repair_pytest.txt"
-          ).read_text(encoding="utf-8")
+          before = (root / "before_repair_pytest.txt").read_text(
+              encoding="utf-8"
+          )
+          after = (root / "after_repair_pytest.txt").read_text(
+              encoding="utf-8"
+          )
 
           assert gate["passed"] is True
           assert all(gate["checks"].values())
@@ -70,15 +70,104 @@ jobs:
           assert "FAILED" in before
           assert "3 passed" in after
 
-          print("Pipeline evidence verified.")
-          print("Quality gates: PASS")
-          print("Human review: PENDING")
+          print("MOCK quality gate verified.")
           PY
 
-      - name: Upload test evidence
+      - name: Upload MOCK evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ai-devflow-evidence
+          name: mock-pipeline-evidence
           path: reports/
+          if-no-files-found: warn
+
+  docker-acceptance:
+    name: Docker acceptance and red-green replay
+    needs: engineering-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      AI_MODE: mock
+
+    steps:
+      - name: Checkout source and evidence
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check Docker availability
+        run: docker version
+
+      - name: Build isolated test image
+        run: docker build -t aidevflow-test:1 ./docker/runner
+
+      - name: Verify original candidate green
+        run: |
+          python -m core.isolated_tester \
+            --candidate evidence/real_api/20261121-085152-bc4b86/round_02/candidate.py \
+            --output ci_evidence/baseline
+
+      - name: Verify deliberately seeded red test
+        shell: bash
+        run: |
+          if python -m core.isolated_tester \
+            --candidate evidence/red_green/20261121-091420-597571/faulty_seed.py \
+            --output ci_evidence/red; then
+            echo "ERROR: The deliberately faulty code unexpectedly passed."
+            exit 1
+          fi
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path("ci_evidence/red/validation.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+
+          assert report["status"] == "FAILED", report
+          assert report["tests_executed"] is True, report
+          assert report["failed_count"] >= 1, report
+
+          print("Expected real Pytest failure confirmed.")
+          PY
+
+      - name: Verify DeepSeek repair green
+        run: |
+          python -m core.isolated_tester \
+            --candidate evidence/red_green/20261121-091420-597571/repair_01.py \
+            --output ci_evidence/repaired
+
+      - name: Verify both green reports
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          for stage in ("baseline", "repaired"):
+              path = Path("ci_evidence") / stage / "validation.json"
+              report = json.loads(path.read_text(encoding="utf-8"))
+
+              assert report["status"] == "PASSED", report
+              assert report["tests_executed"] is True, report
+              assert report["passed_count"] == 15, report
+              assert report["failed_count"] == 0, report
+
+              print(f"{stage}: 15/15 passed.")
+
+          print("Docker red-green replay verified.")
+          PY
+
+      - name: Upload Docker evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-acceptance-evidence
+          path: ci_evidence/
           if-no-files-found: warn

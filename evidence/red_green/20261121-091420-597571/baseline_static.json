@@ -1,0 +1,8 @@
+{
+  "python_syntax": true,
+  "ruff_lint": true,
+  "basic_security_scan": true,
+  "notes": [],
+  "contract_functions": true,
+  "all_passed": true
+}

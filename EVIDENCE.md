@@ -1,171 +1,312 @@
-# AI DevFlow｜研发流水线验证证据
+# AI DevFlow｜B11 研发流水线运行证据
 
-## 一、项目与笔试要求的对应关系
+**项目：** B11 · 组建 AI 研发团队
+**MVP 场景：** 赛事影像上传日志分析工具
+**验证日期：** 2026 年 11 月 21 日
+**状态：** 真实研发流水线已通过机器验收，人工审核仍为 PENDING
 
-本项目对应 B11《组建 AI 研发团队》笔试题，重点验证 Part A 第四章“研发工作流与质量门禁”、第五章“评估体系”和第七章“风险及权限边界”。
+## 一、与 Part A 团队方案的对应关系
 
-**MVP 业务场景：** 赛事影像上传日志分析工具。
+本 MVP 重点验证 `01_Team_Proposal.md` 中以下设计：
 
-核心流程：
+- **第二章 Agent 与工具链架构：** Planner、Developer、Tester、Repair 之间的协作，以及与 Python、Git、Pytest、Ruff 的集成。
+- **第四章研发工作流与质量门禁：** 需求输入、代码生成、静态检查、Docker 隔离测试、失败响应、有限重试、人工审核。
+- **第五章评估体系：** 测试通过率、修复结果、失败原因、Token 用量和可复现证据。
+- **第七章风险与红线：** 最小权限、隔离执行、禁止 Agent 修改测试、禁止自动生产部署。
 
-需求读取 → 代码生成 → 自动测试 → 失败处理 → 回归验证 → 质量门禁 → 人工审核。
-
-当前提供 MOCK 本地演示及单独的 DeepSeek 真实修复实验，两者的结果分别记录。
+本项目是单一内部工具场景的工程 MVP，不代表已经实现企业级通用软件研发平台，也不能证明实际交付周期已经从六周缩短至两周。
 
 ## 二、运行环境
 
-| 项目 | 实际配置 |
+| 项目 | 实际环境 |
 |---|---|
 | 操作系统 | Windows |
 | Python | 3.12.0 |
-| Pytest | 9.2.0 |
+| 本地 Pytest | 9.2.0 |
+| Docker 测试环境 | Linux / Python 3.12 |
 | 代码检查 | Ruff |
-| 版本管理 | Git |
-| 可视化 | Streamlit |
 | 大模型 | DeepSeek |
-| 本地演示 | MOCK |
+| 实际模型标识 | deepseek-flash |
+| 版本控制 | Git |
+| CI 配置 | GitHub Actions |
+| 业务验收 | 15 项 |
+| 工程单元测试 | 9 项 |
 
-## 三、运行和复现方法
+正式需求：`workspace/requirements/task.md`
 
-安装依赖：
+正式验收测试：`acceptance/test_log_contract.py`
+
+隔离测试模块：`core/isolated_tester.py`
+
+真实编排器：`core/auto_pipeline.py`
+
+## 三、实验 A：真实 DeepSeek 研发流水线
+
+### 3.1 实验信息
+
+任务编号：
+
+`20261121-085152-bc4b86`
+
+本实验使用真实 DeepSeek API，完成规划、代码生成、静态检查、自动修复与最终验收。
+
+运行命令：
 
 ```powershell
-python -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m core.auto_pipeline --call-api --max-repairs 2
 ```
 
-运行本地流水线：
+### 3.2 实际执行过程
+
+| 阶段 | 实际结果 | 后续处理 |
+|---|---|---|
+| Planner | 成功生成开发计划 | 进入编码 |
+| Developer | 生成第一版候选代码 | 进入静态检查 |
+| Round 0 | 未批准的 `__future__` 导入 | 触发 Repair 1 |
+| Repair 1 | 生成第二版代码 | 重新检查 |
+| Round 1 | Ruff 检出三个未使用导入 | 触发 Repair 2 |
+| Repair 2 | 生成第三版代码 | 重新检查 |
+| Round 2 | 静态检查通过 | 进入 Docker |
+| Docker Pytest | **15 passed，0 failed** | 等待人工审核 |
+
+Round 0 中的 `from __future__ import annotations` 属于 Python 合法语法，被当前导入白名单拦截，是偏保守规则引发的静态检查误报，并非已证实的代码安全漏洞。
+
+Round 1 的问题为 Ruff F401，涉及 `typing.Any`、`typing.Iterable`、`typing.Iterator` 三项未使用导入。
+
+本实验证明了真实模型能够响应静态质量门禁失败并进行有限次数修复。由于前两轮均被静态检查拦截，本次实验**没有出现 Pytest 红灯**。
+
+### 3.3 实际 API Token
+
+| 模型阶段 | 输入 Tokens | 输出 Tokens | 合计 |
+|---|---:|---:|---:|
+| Planner | 1,385 | 614 | 1,999 |
+| Developer | 3,963 | 2,192 | 6,155 |
+| Repair 1 | 5,516 | 1,977 | 7,493 |
+| Repair 2 | 5,745 | 1,995 | 7,740 |
+| **总计** | **16,609** | **6,778** | **23,387** |
+
+上述 Token 为本次实际 API 响应记录，人民币费用以 DeepSeek 平台账单为准。
+
+### 3.4 原始证据位置
+
+`evidence/real_api/20261121-085152-bc4b86/`
+
+关键文件：
+
+- `requirement.md`：本次运行的业务需求快照。
+- `acceptance_snapshot.py`：验收规则快照。
+- `plan.md`：真实 Planner 输出。
+- `result.json`：状态、模型调用、Token 和各轮结果。
+- `report.md`：中文运行报告。
+- `round_00/candidate.py`：初版代码。
+- `round_00/static_failures.txt`：第一次静态检查失败。
+- `round_01/candidate.py`：第一轮修复代码。
+- `round_01/static_failures.txt`：第二次静态检查失败。
+- `round_02/candidate.py`：最终通过验收的候选代码。
+- `round_02/validation/pytest.txt`：Docker Pytest 实际输出。
+- `round_02/validation/validation.json`：测试状态、数量及 SHA256。
+
+最终状态：
+
+`TESTS_PASSED_REVIEW_PENDING`
+
+人工审核：`PENDING`
+
+生产部署：`False`
+
+## 四、实验 B：故意失败测试与真实 DeepSeek 修复
+
+### 4.1 实验目的
+
+满足 B11 对故意失败测试和 Agent 失败响应的要求，并验证：
+
+**真实 Pytest 失败 → DeepSeek 读取错误日志 → 生成修复代码 → 完整回归通过**
+
+本实验属于明确标记的受控故障注入。
+
+初始缺陷由实验脚本人为注入，不宣称是 DeepSeek 自主产生的缺陷。
+
+### 4.2 实验信息
+
+任务编号：
+
+`20261121-091420-597571`
+
+实验脚本：
+
+`experiments/demo_red_green.py`
+
+输入基线：
+
+`evidence/real_api/20261121-085152-bc4b86/round_02/candidate.py`
+
+运行命令：
 
 ```powershell
-python main.py
+.\.venv\Scripts\python.exe -m experiments.demo_red_green --source ".\evidence\real_api\20261121-085152-bc4b86\round_02\candidate.py" --max-repairs 2 --call-api
 ```
 
-运行自动测试：
+### 4.3 实际执行结果
+
+| 步骤 | 实际结果 |
+|---|---|
+| 基线验证 | 原始候选通过全部 15 项验收 |
+| 故障注入 | 仅修改独立实验副本 |
+| 真实 Pytest 红灯 | **10 项失败** |
+| DeepSeek Repair | 真实 API 调用成功 |
+| 修复后回归 | **15 项全部通过** |
+| 人工审核 | PENDING |
+| 生产部署 | 未执行 |
+
+故障注入没有修改正式验收测试，也没有覆盖实验 A 的最终候选代码。
+
+实验 B 的模型调用记录：
+
+- 输入 Tokens：7,151
+- 输出 Tokens：1,969
+- 合计 Tokens：**9,120**
+
+### 4.4 原始证据位置
+
+`evidence/red_green/20261121-091420-597571/`
+
+关键证据包括：
+
+- `baseline_good.py`：通过验收的基线源码。
+- `faulty_seed.py`：人为注入缺陷的副本。
+- `red_fault_validation/pytest.txt`：真实 Pytest 红灯日志。
+- `red_fault_validation/validation.json`：失败统计。
+- `repair_01.py`：DeepSeek 生成的修复候选。
+- `repair_01_validation/pytest.txt`：修复后的完整回归结果。
+- `result.json`：实验阶段、SHA256、Token 记录。
+- `report.md`：实验总结。
+
+本次实验展示了真实测试失败后，Agent 能够根据失败日志生成有效修复，并再次通过原有测试。
+
+## 五、历史 MOCK 基线
+
+早期流水线保留为离线演示，不需要 API Key。
+
+入口：
 
 ```powershell
-python -m pytest tests -v
+.\.venv\Scripts\python.exe main.py
 ```
 
-打开可视化界面：
+历史实验结果：
+
+- 首次执行：2 项通过、1 项故意失败。
+- MOCK Repair：使用预设的确定性修复逻辑。
+- 完整回归：3 项通过。
+
+历史证据：
+
+- `reports/before_repair_pytest.txt`
+- `reports/after_repair_pytest.txt`
+- `reports/quality_gate.json`
+- `reports/review_request.json`
+
+这一实验不属于真实大模型自主修复。
+
+## 六、工程测试与质量门禁
+
+2026 年 11 月 21 日本地执行：
 
 ```powershell
-python -m streamlit run dashboard.py
+.\.venv\Scripts\python.exe -m pytest tests -q
 ```
 
-以上本地流程不需要 API Key。真实模型实验需要额外配置自己的 API Key。
+实际结果：
 
-## 四、测试失败与修复验证
+`9 passed in 2.25s`
 
-### 4.1 初次测试
+本地执行的 Git 检查：
 
-初始日志分析程序未正确校验日期的有效性。
+```powershell
+git diff --check
+```
 
-当输入 `2026-99-99` 时，程序将无效日期错误地计入有效上传记录。
+无报错。
 
-实际测试结果：
+质量门禁包括：
 
-| 测试用例 | 结果 |
-|---|---|
-| 上传成功与失败统计 | 通过 |
-| 异常格式日志处理 | 通过 |
-| 非法时间戳识别 | 失败 |
+1. 业务需求与验收标准预检查。
+2. Python 语法检查。
+3. Ruff 静态代码检查。
+4. 基础导入及风险调用筛查。
+5. Docker 内真实 Pytest 测试。
+6. 测试失败后的有限次数修复。
+7. 各轮候选源码和 SHA256 留存。
+8. 未经人工审核不得合并或发布。
 
-**首次测试：2 项通过，1 项失败。**
+静态检查属于基础筛查，不能替代安全审计；Docker 的网络、文件系统和资源限制可以降低风险，但不保证绝对隔离。
 
-原始证据：`reports/before_repair_pytest.txt`
+## 七、Git 与 CI 说明
 
-### 4.2 失败响应
+本项目使用 Git 保存源码、需求、验收测试、实验脚本和精选运行证据。
 
-系统读取真实 Pytest 失败输出，识别出日期校验缺陷。
+`.env` 已通过本地检查，处于 Git 忽略状态，且未被版本库跟踪。
 
-在 MOCK 模式下，Repair 模块应用预设的确定性修复补丁，在日志解析逻辑中增加日期有效性检查。
+`runs/` 存储本地执行记录，不作为正式提交证据。
 
-此过程没有调用大模型，不属于真实 AI 自主修复。
+`evidence/` 存储经核验的实验记录，需要纳入提交。
 
-### 4.3 修复后的回归测试
+GitHub Actions 配置位于：
 
-系统使用原有三个测试用例重新执行验证，未修改测试断言。
+`.github/workflows/ci.yml`
 
-**回归测试：3 项通过。**
+当前本地测试已验证；**远端 CI 是否通过，仍须以 GitHub Actions 的实际执行记录为准，不能仅凭配置文件存在就宣称成功。**
 
-原始证据：`reports/after_repair_pytest.txt`
+建议 CI 默认不调用收费 API，而是执行离线工程测试和已有候选代码的 Docker 回归测试。
 
-这一实验验证了测试失败、错误响应和修复后回归验证的流程可复现。
+## 八、成本记录
 
-## 五、质量门禁
+本次文档记录的两组成功实验：
 
-| 检查项目 | 验证结果 |
-|---|---|
-| Python 语法检查 | 通过 |
-| 基础安全规则扫描 | 通过 |
-| Ruff 静态代码检查 | 通过 |
-| Pytest 自动化回归测试 | 通过 |
+| 实验 | Tokens |
+|---|---:|
+| 实验 A：完整自动研发 | 23,387 |
+| 实验 B：真实红灯→绿灯 | 9,120 |
+| **两组实验合计** | **32,507** |
 
-机器可读记录：`reports/quality_gate.json`
+这是上述两组成功实验的 Token 合计，不代表项目开发期间全部 API 消耗。
 
-上述扫描不等同于完整安全审计或安全沙箱，不能据此证明代码不存在所有安全问题。
+未将历史调用、失败尝试或其他实验擅自合并为总账。
 
-## 六、真实 DeepSeek API 修复实验
+## 九、已知边界与未完成事项
 
-本项目另外执行了一次真实大模型修复实验。
+- 当前主要验证日志分析这一特定内部工具场景。
+- 真实验收测试通过不代表所有未知输入都正确。
+- 人工 Review 尚未完成。
+- 未执行生产部署。
+- 未证明生产级安全沙箱能力。
+- 尚未证明企业整体效率提升幅度。
+- CI 的远端运行状态需要独立核验。
+- 当前真实实验规模不足以推断模型长期修复成功率。
 
-实验输入包括初始 Python 代码和真实 Pytest 失败日志。
+## 十、参考资料与引用清单
 
-| 项目 | 实际记录 |
-|---|---|
-| 模型 | deepseek-flash |
-| 输入 Token | 667 |
-| 输出 Token | 281 |
-| 总 Token | 948 |
-| 调用状态 | 成功生成修复候选 |
-| Python 语法检查 | 通过 |
-| Ruff 静态检查 | 通过 |
-| 功能回归测试 | 尚未验证 |
-| 人工审核 | 待审核 |
+以下为项目使用或参考的公开技术文档：
 
-真实模型生成的候选代码添加了 `datetime.strptime` 日期校验逻辑。
+1. Python 官方文档：https://docs.python.org/3/
+2. Pytest 官方文档：https://docs.pytest.org/
+3. Ruff 官方文档：https://docs.astral.sh/ruff/
+4. Docker 官方文档：https://docs.docker.com/
+5. Git 官方文档：https://git-scm.com/docs
+6. GitHub Actions 官方文档：https://docs.github.com/actions
+7. DeepSeek API 官方文档：https://api-docs.deepseek.com/
+8. Streamlit 官方文档：https://docs.streamlit.io/
 
-候选代码保存在本地独立实验目录，未覆盖已经通过 MOCK 测试的正式示例代码。
+## 十一、结论
 
-目前不能将“候选生成成功”认定为“完整修复成功”。模型调用费用应以实际 API 账单为准，不根据 Token 数量自行编造金额。
+本项目已完成 B11 Part B 所要求的最小 Agent 研发闭环，并通过真实 API 与 Docker 测试提供可核验的结果。
 
-## 七、人工审核与权限边界
+最关键的两项证据是：
 
-质量门禁通过后，系统生成 `review_request.json`，其初始审核状态为 `PENDING`。
+**实验 A：真实 Planner + Developer + 两轮 Repair，最终 15/15 通过。**
 
-审核请求包含代码 SHA256、质量检查结果和人工审核清单。
+**实验 B：人为注入缺陷导致真实 Pytest 10 项失败，经真实 DeepSeek Repair 后 15/15 通过。**
 
-当前流程不会自动合并未经审批的代码，也不会自动部署到生产环境。
+两项实验均未自动部署代码，人工审核状态仍为 PENDING。
 
-## 八、Git 版本管理
-
-已验证的本地提交记录：
-
-| 提交标识 | 内容 |
-|---|---|
-| `57abd55` | Agent 流水线与质量门禁 |
-| `0f7ac1c` | CI 配置 |
-| `c457157` | 七章团队方案 |
-| `8835eb7` | 研发验证证据初稿 |
-
-GitHub Actions 已编写配置，但尚不能宣称线上运行成功，需在代码上传后以实际 CI 执行结果为准。
-
-## 九、项目局限及后续改进
-
-- MOCK 模式使用预设开发和修复逻辑，不支持任意需求的自主研发。
-- 真实模型修复候选仍需功能回归验证。
-- 尚未完成生产级安全隔离环境。
-- 人工审核不能由 Agent 自动代替。
-- 本 MVP 未实际部署至生产环境。
-- 6 周缩短到 2 周是 Part A 的企业实施目标，不是当前 MVP 已经实现的效率提升结果。
-
-## 十、参考资料
-
-- Python 官方文档：https://docs.python.org/3/
-- Pytest 官方文档：https://docs.pytest.org/
-- Ruff 官方文档：https://docs.astral.sh/ruff/
-- Git 官方文档：https://git-scm.com/docs
-- GitHub Actions：https://docs.github.com/actions
-- DeepSeek API：https://api-docs.deepseek.com/
-- Streamlit：https://docs.streamlit.io/
-
-以上证据以实际代码、测试输出和运行记录为依据。最终提交前应补充新增的验证结果，并检查引用清单与实际使用资料一致。
+最终交付前仍需确认 GitHub CI 实际运行结果、Part A 与当前实现状态的一致性，以及提交包的完整性。

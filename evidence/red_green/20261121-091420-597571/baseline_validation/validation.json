@@ -1,0 +1,14 @@
+{
+  "expected_tests": 15,
+  "time_utc": "2026-11-21T09:14:21.265199+00:00",
+  "candidate_sha256": "2052d600cb9ddd0b811f42e91080703a9d2cb880f592eb7ccaa9fad47dd9e07c",
+  "acceptance_sha256": "3021813e2891a22da8432a28caca4f18c4d9f976c49b4219be87b2455a596969",
+  "image": "aidevflow-test:1",
+  "status": "PASSED",
+  "tests_executed": true,
+  "return_code": 0,
+  "passed_count": 15,
+  "failed_count": 0,
+  "human_review": "PENDING",
+  "production_deployment": false
+}

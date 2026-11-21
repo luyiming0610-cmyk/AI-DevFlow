@@ -1,655 +1,604 @@
 
-import os
-import subprocess
-import sys
+import json
+import re
 from pathlib import Path
 
-import pandas as pd
 import streamlit as st
-
-from core.report_generator import (
-    collect_results,
-    read_text,
-    review_description,
-    test_description,
-    write_chinese_report,
-)
 
 
 ROOT = Path(__file__).resolve().parent
-REPORTS = ROOT / "reports"
+TASKS_DIR = ROOT / "runs" / "interactive_tasks"
 
 
 st.set_page_config(
-    page_title="AI DevFlow｜智能研发控制台",
+    page_title="AI DevFlow｜AI 研发工作台",
     page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 
-# ============================
-# 读取实际运行数据
-# ============================
+# ========================================
+# 页面样式
+# ========================================
 
-data = collect_results(ROOT)
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background: #F8FAFC;
+    }
 
-before = data["before"]
-after = data["after"]
+    .block-container {
+        max-width: 1120px;
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+    }
 
-checks = data["checks"]
+    .hero {
+        background: linear-gradient(
+            115deg, #101C33, #193B6B
+        );
+        padding: 38px 42px;
+        border-radius: 18px;
+        margin-bottom: 26px;
+    }
 
-trial = data["api_trial"]
-validation = data["api_validation"]
+    .hero h1 {
+        color: white;
+        font-size: 40px;
+        margin: 0 0 10px 0;
+    }
+
+    .hero p {
+        color: #C7D9F3;
+        font-size: 19px;
+        margin: 0;
+    }
+
+    [data-testid="stMetric"] {
+        background: white;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        padding: 18px;
+    }
+
+    div.stButton > button[kind="primary"] {
+        background: #2563EB;
+        color: white;
+        border-radius: 10px;
+        min-height: 52px;
+        font-weight: 650;
+    }
+
+    h2, h3 {
+        color: #14233D;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
-def test_metric(summary: dict) -> str:
-    if not summary["found"]:
-        return "暂无记录"
+# ========================================
+# 文件读取工具
+# ========================================
 
-    total = summary["passed"] + summary["failed"]
-
-    return f"{summary['passed']}/{total}"
-
-
-def quality_text() -> str:
-    return (
-        "全部通过"
-        if data["quality_passed"]
-        else "未通过或待验证"
-    )
-
-
-def run_mock_pipeline() -> None:
-    """仅运行本地 MOCK，不调用收费 API。"""
-
-    env = os.environ.copy()
-
-    env["AI_MODE"] = "mock"
+def read_json(path: Path) -> dict:
+    if not path.is_file():
+        return {}
 
     try:
-        process = subprocess.run(
-            [
-                sys.executable,
-                str(ROOT / "main.py"),
-            ],
-            cwd=ROOT,
-            env=env,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
+        data = json.loads(
+            path.read_text(encoding="utf-8")
+        )
+        return data if isinstance(data, dict) else {}
+
+    except (OSError, ValueError):
+        return {}
+
+
+def read_text(path: Path) -> str:
+    if not path.is_file():
+        return ""
+
+    return path.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+
+def read_test_log(path: Path) -> str:
+    """
+    兼容 UTF-8 和 PowerShell 生成的 UTF-16 日志。
+    """
+    if not path.is_file():
+        return ""
+
+    raw = path.read_bytes()
+
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return raw.decode(
+            "utf-16",
             errors="replace",
-            timeout=90,
-            check=False,
         )
 
-        st.session_state["mock_output"] = (
-            process.stdout + "\n" + process.stderr
+    if raw and raw.count(b"\x00") > len(raw) // 8:
+        return raw.decode(
+            "utf-16-le",
+            errors="replace",
         )
 
-        st.session_state["mock_exit_code"] = (
-            process.returncode
+    return raw.decode(
+        "utf-8-sig",
+        errors="replace",
+    )
+
+
+def parse_tests(log: str) -> tuple[int, int, bool]:
+    passed_matches = re.findall(
+        r"\b(\d+)\s+passed\b",
+        log,
+    )
+
+    failed_matches = re.findall(
+        r"\b(\d+)\s+failed\b",
+        log,
+    )
+
+    passed = (
+        int(passed_matches[-1])
+        if passed_matches else 0
+    )
+
+    failed = (
+        int(failed_matches[-1])
+        if failed_matches else 0
+    )
+
+    found = bool(passed_matches or failed_matches)
+
+    return passed, failed, found
+
+
+def load_latest_task():
+    if not TASKS_DIR.is_dir():
+        return None
+
+    folders = sorted(
+        [
+            folder
+            for folder in TASKS_DIR.iterdir()
+            if folder.is_dir()
+        ],
+        key=lambda folder: folder.name,
+        reverse=True,
+    )
+
+    for folder in folders:
+        record = read_json(
+            folder / "result.json"
         )
 
-    except subprocess.TimeoutExpired:
-        st.session_state["mock_output"] = (
-            "本次执行超时，请检查本地程序。"
-        )
-        st.session_state["mock_exit_code"] = -1
+        if record:
+            return folder, record
 
-    except OSError as exc:
-        st.session_state["mock_output"] = (
-            f"启动失败：{exc}"
-        )
-        st.session_state["mock_exit_code"] = -1
+    return None
 
 
-# ============================
-# 页面标题
-# ============================
-
-st.title("🤖 AI DevFlow")
-st.subheader("AI 智能研发流水线控制台")
-
-st.caption(
-    "B11《组建 AI 研发团队》｜"
-    "Agent 编排、失败响应、自动化测试与质量门禁"
-)
-
-st.info(
-    "本地一键运行使用 MOCK 模式，不消耗 API 费用。"
-    "真实 DeepSeek 修复实验及其功能验证单独展示，"
-    "不会与 MOCK 结果混淆。"
-)
+def status_text(status: str) -> str:
+    return {
+        "STARTED": "任务已创建",
+        "PLAN_GENERATED": "开发计划已生成",
+        "STATIC_CHECKS_PASSED": "静态检查通过",
+        "STATIC_CHECKS_FAILED": "静态检查未通过",
+        "FAILED": "代码生成失败",
+    }.get(status, status or "未知")
 
 
-# ============================
-# 左侧导航说明
-# ============================
+def check_label(value) -> str:
+    if value is True:
+        return "通过"
 
-with st.sidebar:
-    st.title("项目导航")
+    if value is False:
+        return "未通过"
 
-    st.markdown(
-        "**项目名称：** AI DevFlow"
-    )
-
-    st.markdown(
-        "**笔试题目：** B11 · 组建 AI 研发团队"
-    )
-
-    st.divider()
-
-    st.markdown("### 当前实现")
-
-    st.write("✅ 本地研发流水线")
-    st.write("✅ 自动测试与失败响应")
-    st.write("✅ 四项质量门禁")
-    st.write("✅ 真实 DeepSeek 修复实验")
-    st.write("✅ 中文运行报告")
-    st.write("⏳ 人工最终审核")
-
-    st.divider()
-
-    st.caption(
-        "演示环境：本地 Python + Streamlit"
-    )
-
-    st.caption(
-        "当前不会自动部署生产环境。"
-    )
+    return "未验证"
 
 
-# ============================
-# 项目指标
-# ============================
+# ========================================
+# 页面顶部
+# ========================================
 
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    st.metric(
-        "首次测试通过数",
-        test_metric(before),
-    )
-
-with c2:
-    st.metric(
-        "回归测试通过数",
-        test_metric(after),
-    )
-
-with c3:
-    st.metric(
-        "质量门禁",
-        quality_text(),
-    )
-
-with c4:
-    st.metric(
-        "人工审核",
-        review_description(
-            data["review"].get("status", "")
-        ),
-    )
-
-st.divider()
-
-
-# ============================
-# 五大功能页面
-# ============================
-
-(
-    overview_tab,
-    pipeline_tab,
-    tests_tab,
-    api_tab,
-    report_tab,
-) = st.tabs(
-    [
-        "项目总览",
-        "研发流水线",
-        "测试与质量门禁",
-        "真实 DeepSeek 实验",
-        "中文交付报告",
-    ]
+st.markdown(
+    """
+    <div class="hero">
+        <h1>AI DevFlow</h1>
+        <p>从业务需求到代码交付的 AI 研发工作台</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
 
-# ============================
-# 1. 项目总览
-# ============================
+if st.button(
+    "＋ 新建 AI 研发任务",
+    type="primary",
+    use_container_width=True,
+):
+    st.switch_page(
+        "pages/01_新建研发任务.py"
+    )
 
-with overview_tab:
-    st.header("项目总览")
+
+st.write("")
+st.subheader("最近的研发任务")
+
+latest = load_latest_task()
+
+
+# ========================================
+# 最近任务
+# ========================================
+
+if latest is None:
+    st.info("暂无研发任务，请先创建一个任务。")
+
+else:
+    task_dir, record = latest
+
+    task_id = record.get(
+        "task_id",
+        task_dir.name,
+    )
+
+    st.write("任务编号：", task_id)
 
     st.write(
-        "本项目选择赛事影像上传日志分析工具"
-        "作为内部研发场景，通过多阶段 Agent 编排，"
-        "验证从需求到代码审核的最小闭环。"
+        "代码生成状态：",
+        status_text(record.get("status", "")),
     )
 
-    st.subheader("测试通过情况")
-
-    if before["found"] and after["found"]:
-        chart_data = pd.DataFrame(
-            [
-                {
-                    "测试阶段": "首次测试",
-                    "通过": before["passed"],
-                    "失败": before["failed"],
-                },
-                {
-                    "测试阶段": "修复后回归",
-                    "通过": after["passed"],
-                    "失败": after["failed"],
-                },
-            ]
-        )
-
-        st.bar_chart(
-            chart_data.set_index("测试阶段"),
-        )
-
-        st.caption(
-            "图表直接读取保存的 Pytest 运行日志，"
-            "展示故意失败测试与修复后的变化。"
-        )
-    else:
-        st.warning(
-            "缺少测试记录，请先运行本地流水线。"
-        )
-
-    st.subheader("研发工作流")
-
-    stages = [
-        (
-            "① 需求分析",
-            "读取需求并生成开发计划",
-        ),
-        (
-            "② 代码生成",
-            "生成日志分析程序",
-        ),
-        (
-            "③ 自动测试",
-            "执行验收用例，发现缺陷",
-        ),
-        (
-            "④ 失败修复",
-            "根据错误日志修复缺陷",
-        ),
-        (
-            "⑤ 质量门禁",
-            "语法、安全规则、Ruff、Pytest",
-        ),
-        (
-            "⑥ 人工审核",
-            "检查代码后决定是否合并",
-        ),
-    ]
-
-    for start in (0, 3):
-        columns = st.columns(3)
-
-        for column, (title, desc) in zip(
-            columns,
-            stages[start:start + 3],
-        ):
-            with column:
-                with st.container(border=True):
-                    st.markdown(f"**{title}**")
-                    st.caption(desc)
-
-    st.warning(
-        "注意：MOCK 模式中的开发代码与修复补丁"
-        "是预设的；真实 DeepSeek 修复使用独立实验。"
-    )
-
-
-# ============================
-# 2. 研发流水线
-# ============================
-
-with pipeline_tab:
-    st.header("研发任务与流水线执行")
-
-    st.subheader("业务需求")
-
-    requirement = read_text(
-        ROOT / "workspace" / "requirements" / "task.md"
+    requirement = record.get(
+        "requirement",
+        "",
     )
 
     if requirement:
-        with st.expander(
-            "查看完整需求说明",
-            expanded=True,
-        ):
-            st.markdown(requirement)
+        with st.expander("查看业务需求"):
+            st.write(requirement)
+
+    # ------------------------------------
+    # 真实 API 使用量
+    # ------------------------------------
+
+    usage = record.get("usage", {})
+
+    if not isinstance(usage, dict):
+        usage = {}
+
+    total_tokens = sum(
+        item.get("total_tokens", 0)
+        for item in usage.values()
+        if isinstance(item, dict)
+    )
+
+    # ------------------------------------
+    # 静态检查
+    # ------------------------------------
+
+    checks = record.get("checks", {})
+
+    if not isinstance(checks, dict):
+        checks = {}
+
+    required_checks = [
+        "python_syntax",
+        "ruff_lint",
+        "basic_security_scan",
+    ]
+
+    static_passed = all(
+        checks.get(key) is True
+        for key in required_checks
+    )
+
+    # ------------------------------------
+    # 功能测试
+    # ------------------------------------
+
+    pytest_file = task_dir / "pytest.txt"
+
+    log = read_test_log(pytest_file)
+
+    passed, failed, found = parse_tests(log)
+
+    if not found:
+        test_status = "未执行或记录不完整"
+
+    elif failed > 0:
+        test_status = f"{failed} 项失败"
+
+    elif passed > 0:
+        test_status = f"{passed} 项通过"
+
     else:
-        st.warning(
-            "找不到需求文件 workspace/requirements/task.md"
-        )
+        test_status = "结果待核对"
 
-    st.subheader("一键运行")
+    # ------------------------------------
+    # AI 修复状态
+    # ------------------------------------
 
-    st.write(
-        "点击下方按钮，将按顺序执行需求分析、"
-        "代码生成、首次测试、失败修复、回归测试、"
-        "质量检查和人工审核请求生成。"
+    repair_result = read_json(
+        task_dir / "repair_result.json"
     )
 
-    if st.button(
-        "▶ 运行 MOCK 研发流水线",
-        type="primary",
-        use_container_width=True,
-    ):
-        with st.spinner(
-            "正在执行本地研发流水线..."
-        ):
-            run_mock_pipeline()
-
-        st.rerun()
-
-    if "mock_output" in st.session_state:
-        if (
-            st.session_state.get("mock_exit_code")
-            == 0
-        ):
-            st.success(
-                "本次本地流水线执行成功。"
-            )
-        else:
-            st.error(
-                "本次执行失败，请检查运行日志。"
-            )
-
-        with st.expander(
-            "查看本次实际执行日志",
-            expanded=True,
-        ):
-            st.code(
-                st.session_state["mock_output"],
-                language="text",
-            )
-
-    st.caption(
-        "此按钮不会调用 DeepSeek API，"
-        "也不会执行真实模型生成的候选代码。"
+    repair_status = repair_result.get(
+        "status",
+        "",
     )
 
-
-# ============================
-# 3. 测试与质量门禁
-# ============================
-
-with tests_tab:
-    st.header("自动化测试与质量门禁")
-
-    left, right = st.columns(2)
-
-    with left:
-        st.subheader("首次测试")
-
-        st.write(test_description(before))
-
-        if (
-            before["found"]
-            and before["failed"] > 0
-        ):
-            st.error(
-                "预设缺陷成功触发失败测试。"
-            )
-
-        with st.expander(
-            "查看首次测试原始日志"
-        ):
-            st.code(
-                data["before_log"] or "暂无日志",
-                language="text",
-            )
-
-    with right:
-        st.subheader("修复后回归测试")
-
-        st.write(test_description(after))
-
-        if (
-            after["found"]
-            and after["failed"] == 0
-            and after["passed"] > 0
-        ):
-            st.success(
-                "保存的回归测试记录全部通过。"
-            )
-
-        with st.expander(
-            "查看回归测试原始日志"
-        ):
-            st.code(
-                data["after_log"] or "暂无日志",
-                language="text",
-            )
-
-    st.divider()
-
-    st.subheader("质量门禁检查")
-
-    gate_names = {
-        "python_syntax": "Python 语法检查",
-        "basic_security_scan": "基础代码安全规则检查",
-        "ruff_lint": "Ruff 静态代码检查",
-        "pytest": "Pytest 自动化回归测试",
+    repair_status_labels = {
+        "STARTED": "正在处理",
+        "REPAIR_FAILED": "修复请求失败",
+        "REPAIR_CANDIDATE_READY": "修复候选已生成",
+        "STATIC_CHECKS_FAILED": "修复候选静态检查未通过",
     }
 
-    for key, label in gate_names.items():
-        value = checks.get(key)
-
-        if value is True:
-            st.success(f"{label}：通过")
-        elif value is False:
-            st.error(f"{label}：未通过")
-        else:
-            st.warning(f"{label}：尚无记录")
-
-    st.caption(
-        "这些结果来自 reports/quality_gate.json。"
-        "基础安全扫描不等于完整安全审计。"
+    repair_display = repair_status_labels.get(
+        repair_status,
+        "尚未执行",
     )
+
+    # ------------------------------------
+    # 主要指标
+    # ------------------------------------
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        st.metric(
+            "真实 API Token",
+            total_tokens,
+        )
+
+    with c2:
+        st.metric(
+            "代码静态检查",
+            "通过" if static_passed else "未通过",
+        )
+
+    with c3:
+        st.metric(
+            "功能验收",
+            test_status,
+        )
+
+    with c4:
+        st.metric(
+            "AI 修复状态",
+            repair_display,
+        )
 
     st.divider()
 
-    st.subheader("本地生成的代码")
+    # ------------------------------------
+    # 测试与失败响应
+    # ------------------------------------
 
-    code = read_text(
-        ROOT / "workspace" / "generated" / "analyzer.py"
-    )
+    st.subheader("研发验收结果")
 
-    with st.expander(
-        "查看 MOCK 生成及修复后的代码"
-    ):
-        st.code(
-            code or "尚未生成源代码",
-            language="python",
+    if found and failed > 0:
+        st.error(
+            f"功能验收失败："
+            f"{passed} 项通过，{failed} 项失败。"
         )
 
-
-# ============================
-# 4. 真实 DeepSeek API 实验
-# ============================
-
-with api_tab:
-    st.header("真实 DeepSeek 修复实验")
-
-    st.write(
-        "该实验真实调用大模型，输入原始 Python 代码"
-        "与 Pytest 失败日志，由模型生成修复候选，"
-        "随后使用原有测试用例进行独立验证。"
-    )
-
-    if not trial:
-        st.warning(
-            "尚未找到真实 API 调用记录。"
+    elif found and passed > 0:
+        st.success(
+            f"当前测试记录：{passed} 项通过。"
         )
 
     else:
-        st.write(
-            "**模型名称：**",
-            trial.get("model", "未知"),
+        st.warning(
+            "当前任务尚无可确认的功能测试结果。"
         )
 
-        st.write(
-            "**调用状态：**",
-            trial.get("status", "未知"),
+    if repair_status == "REPAIR_FAILED":
+        st.error(
+            "AI 修复未完成："
+            + repair_result.get(
+                "error",
+                "未知错误",
+            )
         )
 
-        usage = trial.get("usage") or {}
+    elif repair_status == "REPAIR_CANDIDATE_READY":
+        st.success(
+            "AI 已生成修复候选代码。"
+            "尚需人工检查和回归测试。"
+        )
 
-        a, b, c = st.columns(3)
+    with st.expander("查看真实 Pytest 测试日志"):
+        st.code(
+            log or "尚无测试日志",
+            language="text",
+        )
 
-        with a:
-            st.metric(
-                "输入 Token",
-                usage.get("prompt_tokens", 0),
+    # ------------------------------------
+    # 文件位置
+    # ------------------------------------
+
+    plan_path = task_dir / "plan.md"
+    code_path = task_dir / "candidate.py"
+    repaired_path = task_dir / "candidate_repaired.py"
+    report_path = task_dir / "report.md"
+
+    tabs = st.tabs(
+        [
+            "开发计划",
+            "生成代码",
+            "质量检查",
+            "任务报告",
+        ]
+    )
+
+    # ------------------------------------
+    # 开发计划
+    # ------------------------------------
+
+    with tabs[0]:
+        if plan_path.is_file():
+            plan = read_text(plan_path)
+
+            st.download_button(
+                "下载开发计划",
+                data=plan,
+                file_name="development_plan.md",
+                mime="text/markdown",
             )
 
-        with b:
-            st.metric(
-                "输出 Token",
-                usage.get("completion_tokens", 0),
-            )
-
-        with c:
-            st.metric(
-                "总 Token",
-                usage.get("total_tokens", 0),
-            )
-
-        st.divider()
-
-        st.subheader("真实模型修复验证结果")
-
-        if data["api_verified"]:
-            st.success(
-                "真实 DeepSeek 修复候选已经通过"
-                "原有三项功能回归测试。"
-            )
-
-        elif (
-            validation.get("validation_status")
-            == "PASSED"
-        ):
-            st.warning(
-                "验证记录显示通过，"
-                "但候选文件哈希或原始日志证据不完整。"
-            )
+            with st.expander(
+                "查看完整开发计划",
+                expanded=False,
+            ):
+                st.markdown(plan)
 
         else:
-            st.warning(
-                "真实候选尚未取得完整的通过记录。"
-            )
+            st.info("暂无开发计划。")
 
-        x, y, z = st.columns(3)
+    # ------------------------------------
+    # 源代码
+    # ------------------------------------
 
-        with x:
-            st.metric(
-                "功能测试",
-                test_description(
-                    data["api_tests"]
-                ),
-            )
+    with tabs[1]:
+        if code_path.is_file():
+            code = read_text(code_path)
 
-        with y:
-            st.metric(
-                "代码哈希",
-                (
-                    "一致"
-                    if data["api_hash_matches"]
-                    else "待核对"
-                ),
-            )
-
-        with z:
-            st.metric(
-                "人工审核",
-                review_description(
-                    validation.get(
-                        "human_review",
-                        "PENDING",
-                    )
-                ),
-            )
-
-        if not data["candidate_archived"]:
-            st.info(
-                "当前候选代码仍位于本地 runs 目录。"
-                "提交 GitHub 前需要将它归档到 reports。"
-            )
-
-        with st.expander(
-            "查看 DeepSeek 生成的修复代码"
-        ):
+            st.markdown("**DeepSeek 原始生成代码**")
             st.code(
-                read_text(data["api_candidate"])
-                or "没有找到候选代码",
+                code,
                 language="python",
             )
 
-        with st.expander(
-            "查看真实 API 回归测试日志"
-        ):
-            st.code(
-                data["api_log"]
-                or "暂无真实候选测试日志",
-                language="text",
+            st.download_button(
+                "下载原始代码",
+                data=code,
+                file_name="candidate.py",
+                mime="text/x-python",
             )
 
-        st.caption(
-            "本页面只展示已经执行的真实模型实验记录。"
-            "不会再次发起收费 API 请求。"
-        )
+        if repaired_path.is_file():
+            repaired_code = read_text(repaired_path)
 
-    st.info(
-        "真实模型生成代码并通过三项测试，"
-        "不代表完成生产级安全审核。"
-        "当前未执行生产环境部署。"
-    )
+            st.markdown("**DeepSeek 修复候选代码**")
+            st.code(
+                repaired_code,
+                language="python",
+            )
 
+            st.download_button(
+                "下载修复候选代码",
+                data=repaired_code,
+                file_name="candidate_repaired.py",
+                mime="text/x-python",
+            )
 
-# ============================
-# 5. 中文交付报告
-# ============================
+        if (
+            not code_path.is_file()
+            and not repaired_path.is_file()
+        ):
+            st.info("暂无代码。")
 
-with report_tab:
-    st.header("中文研发流水线交付报告")
+    # ------------------------------------
+    # 质量检查
+    # ------------------------------------
 
-    report = write_chinese_report(ROOT)
+    with tabs[2]:
+        check_names = {
+            "python_syntax": "Python 语法检查",
+            "ruff_lint": "Ruff 代码检查",
+            "basic_security_scan": "基础安全规则检查",
+        }
 
-    st.markdown(report)
+        for key, label in check_names.items():
+            result = checks.get(key)
 
-    st.download_button(
-        "下载中文 Markdown 报告",
-        data=report,
-        file_name="AI_DevFlow_中文运行报告.md",
-        mime="text/markdown",
-        use_container_width=True,
-    )
+            if result is True:
+                st.success(
+                    f"{label}：通过"
+                )
 
-    st.divider()
+            elif result is False:
+                st.error(
+                    f"{label}：未通过"
+                )
 
-    st.subheader("B11 笔试交付说明")
+            else:
+                st.warning(
+                    f"{label}：未验证"
+                )
 
-    st.write(
-        "Part A：七章 AI 研发团队组建方案。"
-    )
+        if repair_result:
+            st.markdown("**最近一次 AI 修复记录**")
 
-    st.write(
-        "Part B：可运行研发流水线、"
-        "成功与失败测试、修复响应、"
-        "质量门禁和人工审核。"
-    )
+            st.write(
+                "状态：",
+                repair_display,
+            )
 
-    st.write(
-        "配套材料：README、EVIDENCE、"
-        "Git 版本记录和演示录屏。"
-    )
+            repair_usage = repair_result.get(
+                "usage",
+                {},
+            )
+
+            if repair_usage:
+                st.json(repair_usage)
+
+            repair_checks = repair_result.get(
+                "checks",
+                {},
+            )
+
+            if repair_checks:
+                st.json(repair_checks)
+
+    # ------------------------------------
+    # 任务报告
+    # ------------------------------------
+
+    with tabs[3]:
+        st.markdown("**代码生成阶段报告**")
+
+        if report_path.is_file():
+            st.download_button(
+                "下载任务报告",
+                data=read_text(report_path),
+                file_name="task_report.md",
+                mime="text/markdown",
+            )
+
+            with st.expander(
+                "查看完整任务报告",
+                expanded=False,
+            ):
+                st.markdown(
+                    read_text(report_path)
+                )
+        else:
+            st.info("暂无任务报告。")
+
+        if found:
+            st.write(
+                "功能验收：",
+                test_status,
+            )
+
+        if repair_result:
+            st.write(
+                "最近一次修复：",
+                repair_display,
+            )
+
+        st.write("人工审核：待完成")
+        st.write("生产环境部署：未执行")

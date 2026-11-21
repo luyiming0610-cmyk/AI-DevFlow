@@ -1,106 +1,242 @@
+# AI DevFlow｜Agent 驱动的软件研发流水线
 
-# AI DevFlow｜AI 智能研发流水线
+**B11《组建 AI 研发团队》笔试项目**
 
-## 一、项目介绍
+AI DevFlow 是一个基于 Python 和 DeepSeek API 的轻量级 AI 软件研发流水线。系统以赛事影像上传日志分析工具为 MVP 场景，验证 Agent 从业务需求到代码生成、自动测试、失败修复和人工审核的完整过程。
 
-本项目针对 B11《组建 AI 研发团队》笔试题，
-开发一个最小可运行的 AI Agent 研发流水线。
+项目同时保留离线 MOCK 基线与真实 API 研发流程，所有实验结果明确区分，不混用或伪造测试证据。
 
-业务场景：赛事影像上传日志分析工具。
+## 1. 核心功能
 
-项目旨在演示：
+真实 API 流水线包括：
 
-需求读取 → 代码生成 → 自动测试 → 失败响应
-→ 回归验证 → 质量门禁 → 人工审核。
+1. **Planner Agent**：读取需求文档，生成开发计划。
+2. **Developer Agent**：根据规范及验收测试生成 Python 代码。
+3. **Static Quality Gate**：执行语法检查、基础安全检查和 Ruff 静态检查。
+4. **Docker Tester**：在受限 Docker 容器内执行真实 Pytest。
+5. **Repair Agent**：读取失败日志并自动生成修复代码，按照配置进行有限次数重试。
+6. **Reporter**：保存各轮源码、SHA256、测试记录、Token 使用量和中文报告。
+7. **Human Review Gate**：测试通过后仍需人工审核，系统不自动合并或生产部署。
 
-本项目包含本地 MOCK 演示与真实 DeepSeek
-修复实验，明确区分两者的验证结果。
+系统采用轻量级 Python 编排，不依赖大型 Agent 框架。
 
-## 二、技术栈
+## 2. 技术栈
 
-- Python 3.12
-- DeepSeek API（可选）
-- Pytest
-- Ruff
-- Streamlit
-- Git / GitHub Actions
+| 组件 | 技术 |
+|---|---|
+| 开发语言 | Python 3.12 |
+| 模型 | DeepSeek API |
+| 研发编排 | Python |
+| 功能测试 | Pytest 9.2.0 |
+| 代码检查 | Ruff |
+| 隔离执行 | Docker Desktop / Docker Engine |
+| 管理界面 | Streamlit |
+| 版本管理 | Git |
+| 持续集成 | GitHub Actions |
+| 运行证据 | Markdown、JSON、SHA256、Pytest 日志 |
 
-Agent 编排使用 Python 自行实现，
-不依赖大型 Agent 框架。
+## 3. 安装
 
-## 三、环境安装
+要求安装 Python 3.12。
 
-建议使用 Python 3.12。
-
-### Windows PowerShell
-
-创建虚拟环境：
+Windows PowerShell：
 
 ```powershell
 python -m venv .venv
-```
-
-安装依赖：
-
-```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-### macOS / Linux
+不调用模型的基础测试无需 DeepSeek API Key，也无需启动 Docker。
 
-```bash
-python3.12 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
+运行工程测试：
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests -q
 ```
 
-## 四、一条命令运行 MVP
+截至 2026 年 11 月 21 日，本地已验证 9 项工程测试通过。
 
-MOCK 模式不需要 API Key。
+## 4. 真实 DeepSeek 自动研发流水线
 
-Windows：
+### 4.1 配置 API
+
+在项目根目录创建本地 `.env` 文件。
+
+参考 `.env.example`，配置真实 API Key、模型和服务地址。
+
+示例：
+
+```dotenv
+AI_MODE=mock
+AI_API_KEY=YOUR_DEEPSEEK_API_KEY
+AI_BASE_URL=https://api.deepseek.com
+AI_MODEL=deepseek-flash
+```
+
+真实研发命令显式启用 API 模式，不会自动回退到 MOCK。
+
+**禁止将真实 `.env`、API Key 或其他凭据提交到 Git。**
+
+### 4.2 准备 Docker
+
+安装并启动 Docker Desktop，使用 Linux Containers。
+
+在项目根目录构建隔离测试镜像：
+
+```powershell
+docker build -t aidevflow-test:1 .\docker\runner
+```
+
+验证镜像：
+
+```powershell
+docker image inspect aidevflow-test:1
+```
+
+### 4.3 预检查
+
+```powershell
+.\.venv\Scripts\python.exe -m core.auto_pipeline
+```
+
+预检查验证业务规范、15 项验收测试以及 Docker 镜像是否准备就绪，不调用收费模型 API。
+
+### 4.4 一条命令运行真实研发 MVP
+
+```powershell
+.\.venv\Scripts\python.exe -m core.auto_pipeline --call-api --max-repairs 2
+```
+
+这条命令实际调用 DeepSeek API，产生 Token 费用。
+
+系统自动执行：
+
+需求分析 → 代码生成 → 静态检查 → Docker 测试 → 必要时自动修复 → 完整回归测试 → 生成报告 → 等待人工审核。
+
+每轮代码保存在独立任务目录，不覆盖已有版本。
+
+默认最多执行两轮 Repair，可通过参数调整；超出修复上限或遇到基础设施异常时阻断。
+
+### 4.5 运行状态
+
+- `TESTS_PASSED_REVIEW_PENDING`：全部机器验收通过，等待人工审核。
+- `ESCALATED_TO_HUMAN`：达到修复上限，仍未通过验收。
+- `ESCALATED_UNCHANGED_REPAIR`：模型重复输出相同代码，停止无效重试。
+- `BLOCKED_TEST_INFRASTRUCTURE`：隔离测试环境异常。
+- `PIPELINE_ERROR`：发生编排或 API 异常。
+
+通过机器测试不代表已经获得人工批准，也不代表代码已部署。
+
+## 5. 正式验收测试
+
+本项目选择一个内部工具场景：**赛事影像上传日志分析**。
+
+正式业务规范：
+
+`workspace/requirements/task.md`
+
+正式验收测试：
+
+`acceptance/test_log_contract.py`
+
+当前规范要求提供三个公开函数：
+
+- `parse_line`
+- `analyze_logs`
+- `analyze_text`
+
+验收涉及日志解析、成功失败统计、非法日期、错误明细、流式输入、兼容接口和统计一致性等。
+
+共有 15 项独立验收测试。
+
+正式测试不由 Repair Agent 修改。
+
+## 6. 已完成的真实 API 实验
+
+### 实验 A：真实规划、编码和自动修复
+
+任务编号：
+
+`20261121-085152-bc4b86`
+
+执行结果：
+
+| 阶段 | 结果 |
+|---|---|
+| Planner | 真实 DeepSeek 调用成功 |
+| Developer | 真实 DeepSeek 调用成功 |
+| Round 0 | 静态检查阻断 |
+| Repair 1 | 真实修复 |
+| Round 1 | Ruff 检查阻断 |
+| Repair 2 | 真实修复 |
+| Round 2 | 静态检查通过 |
+| Docker Pytest | 15/15 通过 |
+| 人工审核 | PENDING |
+| 生产部署 | 未执行 |
+
+总消耗：23,387 Tokens。
+
+其中 Round 0 的 `__future__` 导入阻断属于偏保守的静态规则引发的误报；Round 1 为未使用导入造成的 Ruff 检查失败。
+
+本次实验没有产生 Pytest 红灯，因此另行进行了受控故障注入实验。
+
+证据目录：
+
+`evidence/real_api/20261121-085152-bc4b86/`
+
+### 实验 B：受控故障注入与真实红灯→绿灯
+
+任务编号：
+
+`20261121-091420-597571`
+
+本实验以已通过验收的代码为基线，只在独立副本中人为注入逻辑缺陷，不修改正式验收测试。
+
+实验结果：
+
+| 阶段 | 结果 |
+|---|---|
+| 原始代码 | Docker 验收通过 |
+| 人为故障注入 | 在实验副本中制造错误 |
+| Pytest 红灯 | 10 项失败 |
+| DeepSeek Repair | 真实 API 修复 |
+| 回归测试 | 15/15 通过 |
+| 人工审核 | PENDING |
+| 生产部署 | 未执行 |
+
+本次 DeepSeek 调用消耗 9,120 Tokens。
+
+证据目录：
+
+`evidence/red_green/20261121-091420-597571/`
+
+**说明：人为注入的错误与真实模型自主生成的错误是两种不同情况，本实验明确区分二者。**
+
+### 复现实验 B
+
+```powershell
+.\.venv\Scripts\python.exe -m experiments.demo_red_green --source ".\evidence\real_api\20261121-085152-bc4b86\round_02\candidate.py" --max-repairs 2 --call-api
+```
+
+该命令将产生新的实验记录和真实 API 费用。
+
+## 7. 离线 MOCK 基线
+
+项目保留早期 MOCK 流水线，用于无 API Key 的基础研发流程演示。
 
 ```powershell
 .\.venv\Scripts\python.exe main.py
 ```
 
-macOS / Linux：
+MOCK 使用预设的开发结果与确定性修复逻辑，不代表真实大模型自主生成、修复代码。
 
-```bash
-.venv/bin/python main.py
-```
+历史 MOCK 样例展示首次测试 2 通过、1 失败，经确定性修复后 3 项全部通过。
 
-默认模式使用本地预设开发代码与修复逻辑。
+相关记录位于 `reports/`。
 
-预期流程：
+## 8. Streamlit 界面
 
-1. 读取需求。
-2. 生成开发计划。
-3. 生成日志分析代码。
-4. 执行首次测试并发现预设缺陷。
-5. 根据错误日志进行确定性修复。
-6. 重新运行测试。
-7. 检查质量门禁。
-8. 生成人工审核请求和报告。
-
-MOCK 是为了使评审能够离线复现研发流程，
-不应理解为大模型自主完成全部开发。
-
-## 五、运行自动化测试
-
-Windows：
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest tests -v
-```
-
-预期当前验收测试共三项。
-
-首次运行流水线时预设一项失败用例，
-修复后重新运行原有测试。
-
-## 六、可视化控制台
-
-Windows：
+启动：
 
 ```powershell
 .\.venv\Scripts\python.exe -m streamlit run dashboard.py
@@ -108,121 +244,79 @@ Windows：
 
 浏览器访问：
 
-http://localhost:8501
+`http://localhost:8501`
 
-控制台提供：
+页面提供需求查看、历史验证案例及交互式真实任务功能。
 
-- 研发需求展示
-- MOCK 流水线运行
-- 首次测试及回归测试
-- 代码质量门禁
-- 生成代码查看
-- DeepSeek 实验记录
-- 中文运行报告
+**当前界面中的真实任务入口与 `core.auto_pipeline` 的完整自动修复流程不是同一个入口。** 完整自动研发闭环以第 4.4 节的 CLI 命令为准。
 
-网页一键执行目前仅支持 MOCK 模式，
-不会自动调用收费 API。
+## 9. 项目目录
 
-## 七、DeepSeek API 实验
+| 路径 | 职责 |
+|---|---|
+| `agents/` | 各角色 Agent |
+| `core/` | 模型客户端、编排器、测试器、质量门禁 |
+| `acceptance/` | 正式业务验收用例 |
+| `tests/` | 工程测试 |
+| `experiments/` | 故障注入及可复现实验 |
+| `docker/` | 受限测试环境 |
+| `evidence/` | 正式留存的实验源码和报告 |
+| `reports/` | 历史 MOCK 报告 |
+| `runs/` | 本地运行记录，不进入 Git |
+| `pages/` | Streamlit 页面 |
+| `workspace/` | 业务需求及工作区 |
+| `.github/workflows/` | CI 配置 |
 
-真实模型实验使用 OpenAI 兼容接口连接 DeepSeek。
+## 10. 安全、版本与质量要求
 
-在项目根目录创建 `.env` 文件：
+系统遵守以下约束：
 
-```dotenv
-AI_MODE=mock
-AI_API_KEY=你的API密钥
-AI_BASE_URL=https://api.deepseek.com
-AI_MODEL=deepseek-flash
-```
+- AI 生成的代码不直接在宿主机执行。
+- 测试容器关闭网络并限制资源和权限。
+- 静态扫描不等同于完整安全审计。
+- 每一轮候选代码独立保存并记录 SHA256。
+- Repair Agent 不能修改或削弱验收测试。
+- 环境故障、测试失败和修复失败不能伪装为通过。
+- 不自动执行 Git 合并或生产部署。
+- 真实 API Key 不进入仓库。
+- 人工审核状态未批准时不得发布。
 
-不要将真实 API Key 上传至版本库。
+Docker 隔离降低风险，但不等同于经过安全认证的生产级沙箱。
 
-执行真实修复实验时：
+## 11. CI 与工程复现
 
-```powershell
-.\.venv\Scripts\python.exe verify_api_repair.py --call-api
-```
+当前仓库包含：
 
-注意：
+`.github/workflows/ci.yml`
 
-- 该命令将实际调用付费 API。
-- 当前脚本为避免覆盖证据，会拒绝使用已有实验目录。
-- 模型生成的代码不会被直接执行。
-- 调用失败及 Token 消耗以实际日志为准。
-- 不需要为复现 MOCK 流水线运行该命令。
+CI 配置主要覆盖离线 MOCK 流水线和工程测试。新版 Docker 验收是否已经在远端 GitHub Actions 运行成功，需要以实际工作流记录为准。
 
-## 八、真实修复验证结果
+完整的真实 API 流水线不会在普通 CI 推送事件中自动执行，避免意外调用付费模型。
 
-已有一次真实 DeepSeek 修复实验：
+## 12. 已知局限
 
-- 模型：deepseek-flash
-- 输入 Token：667
-- 输出 Token：281
-- 合计 Token：948
-- 模型生成修复候选：成功
-- 候选代码功能回归：3 项通过
-- 人工审核：PENDING
-- 生产环境部署：未执行
+1. 当前正式验收主要针对日志分析这一特定内部工具，不是任意需求的通用软件开发系统。
+2. 机器测试通过后仍需人工审核。
+3. 尚未验证生产级安全沙箱及真实生产部署。
+4. 当前实验不能证明企业级交付周期已经从 6 周缩短到 2 周。
+5. 真实 API 的性能、费用和修复成功率不能直接由少量实验推广到生产规模。
 
-验证记录：
+## 13. B11 交付文件
 
-- `reports/api_repair_evidence.json`
-- `reports/api_repair_validation.json`
-- `reports/api_repair_pytest.txt`
-- `reports/api_repair_candidate.py`
+**Part A：** `01_Team_Proposal.md`，七章团队建设和工程落地方案。
 
-验证结果仅适用于本次候选代码和当前测试集。
+**Part B：** 本项目源码、验收测试、Docker 配置、真实模型研发记录、故障注入实验和人工审核门禁。
 
-## 九、质量门禁
+**证据说明：** `EVIDENCE.md`。
 
-当前实现的检查包括：
+最终演示视频及提交包按照 B11 原题要求单独制作。
 
-1. Python 语法检查。
-2. 基础代码安全规则扫描。
-3. Ruff 静态检查。
-4. Pytest 自动化测试。
+## 14. 技术参考
 
-质量门禁通过后，仍需工程师进行人工审核。
-
-本项目没有向 Agent 授予生产部署权限。
-
-## 十、人工审核和安全边界
-
-- 使用 Git 管理代码版本。
-- 记录测试结果及 SHA256 哈希。
-- 质量门禁失败时阻断交付。
-- 人工审核未完成前不自动发布。
-- 当前临时测试目录不等于系统级沙箱。
-- 不应直接执行未经检查的模型生成代码。
-
-## 十一、项目文件
-
-- `01_Team_Proposal.md`：Part A 七章方案。
-- `main.py`：MVP 主流水线。
-- `agents/`：Agent 实现。
-- `core/`：模型调用与质量门禁等模块。
-- `tests/`：自动化测试。
-- `dashboard.py`：可视化界面。
-- `reports/`：运行报告和实验记录。
-- `EVIDENCE.md`：测试、失败响应及引用证据。
-- `.github/workflows/ci.yml`：CI 配置。
-
-## 十二、已知局限
-
-1. MOCK 模式使用预设代码和确定性修复。
-2. 真实模型修复已完成单次实验，但未构成
-   任意需求的全自动软件开发系统。
-3. 尚未具备生产级安全执行沙箱。
-4. 当前测试集只覆盖三个主要验收场景。
-5. 当前 MVP 没有验证企业级交付周期缩短效果。
-
-## 十三、笔试交付对应
-
-Part A：七章 AI 研发团队建设方案。
-
-Part B：最小可运行研发流水线，
-包含通过测试、故意失败测试、修复响应、
-质量门禁、中文报告和可复现命令。
-
-详细证据见 `EVIDENCE.md`。
+- Python：https://docs.python.org/3/
+- Pytest：https://docs.pytest.org/
+- Ruff：https://docs.astral.sh/ruff/
+- Docker：https://docs.docker.com/
+- GitHub Actions：https://docs.github.com/actions
+- DeepSeek API：https://api-docs.deepseek.com/
+- Streamlit：https://docs.streamlit.io/

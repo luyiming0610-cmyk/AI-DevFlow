@@ -1,0 +1,54 @@
+静态检查失败：
+F401 [*] `typing.Any` imported but unused
+  --> runs\interactive_tasks\20261121-085152-bc4b86\round_01\candidate.py:10:20
+   |
+ 8 | from collections import OrderedDict
+ 9 | from datetime import datetime
+10 | from typing import Any, Iterable, Iterator
+   |                    ^^^
+11 |
+12 | __all__ = ["parse_line", "analyze_logs", "analyze_text"]
+   |
+help: Remove unused import
+   |
+9  | from datetime import datetime
+   - from typing import Any, Iterable, Iterator
+10 |
+   |
+
+F401 [*] `typing.Iterable` imported but unused
+  --> runs\interactive_tasks\20261121-085152-bc4b86\round_01\candidate.py:10:25
+   |
+ 8 | from collections import OrderedDict
+ 9 | from datetime import datetime
+10 | from typing import Any, Iterable, Iterator
+   |                         ^^^^^^^^
+11 |
+12 | __all__ = ["parse_line", "analyze_logs", "analyze_text"]
+   |
+help: Remove unused import
+   |
+9  | from datetime import datetime
+   - from typing import Any, Iterable, Iterator
+10 |
+   |
+
+F401 [*] `typing.Iterator` imported but unused
+  --> runs\interactive_tasks\20261121-085152-bc4b86\round_01\candidate.py:10:35
+   |
+ 8 | from collections import OrderedDict
+ 9 | from datetime import datetime
+10 | from typing import Any, Iterable, Iterator
+   |                                   ^^^^^^^^
+11 |
+12 | __all__ = ["parse_line", "analyze_logs", "analyze_text"]
+   |
+help: Remove unused import
+   |
+9  | from datetime import datetime
+   - from typing import Any, Iterable, Iterator
+10 |
+   |
+
+Found 3 errors.
+[*] 3 fixable with `--fix`.

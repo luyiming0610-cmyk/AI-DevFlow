@@ -1,0 +1,187 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0 -- /usr/local/bin/python
+rootdir: /work
+collecting ... collected 15 items
+
+acceptance/test_log_contract.py::test_parse_success PASSED               [  6%]
+acceptance/test_log_contract.py::test_parse_failure PASSED               [ 13%]
+acceptance/test_log_contract.py::test_parse_failure_with_reason PASSED   [ 20%]
+acceptance/test_log_contract.py::test_unknown_action_rejected PASSED     [ 26%]
+acceptance/test_log_contract.py::test_upload_statistics FAILED           [ 33%]
+acceptance/test_log_contract.py::test_invalid_dates FAILED               [ 40%]
+acceptance/test_log_contract.py::test_format_errors FAILED               [ 46%]
+acceptance/test_log_contract.py::test_invalid_bytes FAILED               [ 53%]
+acceptance/test_log_contract.py::test_empty_input FAILED                 [ 60%]
+acceptance/test_log_contract.py::test_generator_input FAILED             [ 66%]
+acceptance/test_log_contract.py::test_string_input FAILED                [ 73%]
+acceptance/test_log_contract.py::test_analyze_text_compatibility FAILED  [ 80%]
+acceptance/test_log_contract.py::test_detail_limit FAILED                [ 86%]
+acceptance/test_log_contract.py::test_statistics_invariants FAILED       [ 93%]
+acceptance/test_log_contract.py::test_deterministic_output PASSED        [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_upload_statistics ____________________________
+
+    def test_upload_statistics():
+        logs = [
+            "2026-11-20 09:01:12 INFO event_001 upload_success",
+            "2026-11-20 09:02:15 ERROR event_001 upload_timeout",
+            "2026-11-20 09:03:21 ERROR event_002 connection_failed",
+            "2026-11-20 09:04:10 INFO event_002 upload_success",
+        ]
+    
+        result = analyzer.analyze_logs(logs)
+    
+>       assert result["total_lines"] == 4
+               ^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'total_lines'
+
+acceptance/test_log_contract.py:93: KeyError
+______________________________ test_invalid_dates ______________________________
+
+    def test_invalid_dates():
+        logs = [
+            "2026-99-99 09:01:12 INFO event_001 upload_success",
+            "2026/11/20 09:01:12 INFO event_001 upload_success",
+        ]
+    
+        result = analyzer.analyze_logs(logs)
+    
+>       assert result["total_lines"] == 2
+               ^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'total_lines'
+
+acceptance/test_log_contract.py:118: KeyError
+______________________________ test_format_errors ______________________________
+
+    def test_format_errors():
+        logs = [
+            "",
+            "   ",
+            "invalid log entry",
+            "2026-11-20 25:00:00 INFO event_001 upload_success",
+            "2026-11-20 09:01:12 WARN event_001 upload_success",
+            "2026-11-20 09:01:12 INFO event/001 upload_success",
+            "2026-11-20 09:01:12 ERROR event_001 unknown_action",
+        ]
+    
+        result = analyzer.analyze_logs(logs)
+    
+>       assert result["total_lines"] == 7
+               ^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'total_lines'
+
+acceptance/test_log_contract.py:140: KeyError
+______________________________ test_invalid_bytes ______________________________
+
+    def test_invalid_bytes():
+        result = analyzer.analyze_logs([b"\xff"])
+    
+>       assert result["total_lines"] == 1
+               ^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'total_lines'
+
+acceptance/test_log_contract.py:149: KeyError
+_______________________________ test_empty_input _______________________________
+
+    def test_empty_input():
+        result = analyzer.analyze_logs([])
+    
+>       assert result["total_lines"] == 0
+               ^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'total_lines'
+
+acceptance/test_log_contract.py:157: KeyError
+_____________________________ test_generator_input _____________________________
+
+    def test_generator_input():
+        logs = (
+            line
+            for line in [
+                "2026-11-20 09:01:12 INFO event_001 upload_success",
+                "2026-11-20 09:02:15 ERROR event_001 upload_timeout",
+            ]
+        )
+    
+        result = analyzer.analyze_logs(logs)
+    
+>       assert result["total_lines"] == 2
+               ^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'total_lines'
+
+acceptance/test_log_contract.py:180: KeyError
+______________________________ test_string_input _______________________________
+
+    def test_string_input():
+        logs = (
+            "2026-11-20 09:01:12 INFO event_001 upload_success\n"
+            "2026-11-20 09:02:15 ERROR event_001 upload_timeout\n"
+        )
+    
+        result = analyzer.analyze_logs(logs)
+    
+>       assert result["total_lines"] == 2
+               ^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'total_lines'
+
+acceptance/test_log_contract.py:192: KeyError
+_______________________ test_analyze_text_compatibility ________________________
+
+    def test_analyze_text_compatibility():
+        logs = (
+            "2026-11-20 09:01:12 INFO event_001 upload_success"
+        )
+    
+        result = analyzer.analyze_text(logs)
+    
+>       assert result["total_lines"] == 1
+               ^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'total_lines'
+
+acceptance/test_log_contract.py:203: KeyError
+______________________________ test_detail_limit _______________________________
+
+    def test_detail_limit():
+        logs = [
+            "2026-99-99 09:01:12 INFO event_001 upload_success"
+            for _ in range(1001)
+        ]
+    
+        result = analyzer.analyze_logs(logs)
+    
+>       assert result["total_lines"] == 1001
+               ^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'total_lines'
+
+acceptance/test_log_contract.py:215: KeyError
+__________________________ test_statistics_invariants __________________________
+
+    def test_statistics_invariants():
+        logs = [
+            "2026-11-20 09:01:12 INFO event_001 upload_success",
+            "2026-11-20 09:02:15 ERROR event_001 upload_timeout",
+            "2026-99-99 09:03:21 INFO event_002 upload_success",
+        ]
+    
+        result = analyzer.analyze_logs(logs)
+    
+        assert (
+>           result["total_lines"]
+            == result["valid_records"] + result["invalid_records"]
+        )
+E       KeyError: 'total_lines'
+
+acceptance/test_log_contract.py:231: KeyError
+=========================== short test summary info ============================
+FAILED acceptance/test_log_contract.py::test_upload_statistics - KeyError: 't...
+FAILED acceptance/test_log_contract.py::test_invalid_dates - KeyError: 'total...
+FAILED acceptance/test_log_contract.py::test_format_errors - KeyError: 'total...
+FAILED acceptance/test_log_contract.py::test_invalid_bytes - KeyError: 'total...
+FAILED acceptance/test_log_contract.py::test_empty_input - KeyError: 'total_l...
+FAILED acceptance/test_log_contract.py::test_generator_input - KeyError: 'tot...
+FAILED acceptance/test_log_contract.py::test_string_input - KeyError: 'total_...
+FAILED acceptance/test_log_contract.py::test_analyze_text_compatibility - Key...
+FAILED acceptance/test_log_contract.py::test_detail_limit - KeyError: 'total_...
+FAILED acceptance/test_log_contract.py::test_statistics_invariants - KeyError...
+========================= 10 failed, 5 passed in 0.39s =========================
+

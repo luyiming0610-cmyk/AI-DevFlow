@@ -1,0 +1,90 @@
+{
+  "scenario": "CONTROLLED_FAULT_INJECTION",
+  "task_id": "20261121-091420-597571",
+  "created_utc": "2026-11-21T09:14:20.339536+00:00",
+  "baseline_source": "D:\\AI-DevFlow\\evidence\\real_api\\20261121-085152-bc4b86\\round_02\\candidate.py",
+  "baseline_source_sha256": "2052d600cb9ddd0b811f42e91080703a9d2cb880f592eb7ccaa9fad47dd9e07c",
+  "acceptance_sha256": "3021813e2891a22da8432a28caca4f18c4d9f976c49b4219be87b2455a596969",
+  "status": "TESTS_PASSED_REVIEW_PENDING",
+  "fault": "人为在 analyze_logs 函数中插入错误返回值，仅修改实验副本",
+  "api_calls": [
+    {
+      "stage": "repair_1",
+      "usage": {
+        "prompt_tokens": 7151,
+        "completion_tokens": 1969,
+        "total_tokens": 9120
+      }
+    }
+  ],
+  "rounds": [
+    {
+      "name": "baseline",
+      "candidate": "baseline_good.py",
+      "sha256": "2052d600cb9ddd0b811f42e91080703a9d2cb880f592eb7ccaa9fad47dd9e07c",
+      "static_passed": true,
+      "validation": {
+        "expected_tests": 15,
+        "time_utc": "2026-11-21T09:14:21.265199+00:00",
+        "candidate_sha256": "2052d600cb9ddd0b811f42e91080703a9d2cb880f592eb7ccaa9fad47dd9e07c",
+        "acceptance_sha256": "3021813e2891a22da8432a28caca4f18c4d9f976c49b4219be87b2455a596969",
+        "image": "aidevflow-test:1",
+        "status": "PASSED",
+        "tests_executed": true,
+        "return_code": 0,
+        "passed_count": 15,
+        "failed_count": 0,
+        "human_review": "PENDING",
+        "production_deployment": false
+      },
+      "validation_dir": "baseline_validation"
+    },
+    {
+      "name": "red_fault",
+      "candidate": "faulty_seed.py",
+      "sha256": "df75267d35b55d37978577e3efdae38f77a68c0d2e182868e64b085db81aef6c",
+      "static_passed": true,
+      "validation": {
+        "expected_tests": 15,
+        "time_utc": "2026-11-21T09:14:28.733751+00:00",
+        "candidate_sha256": "df75267d35b55d37978577e3efdae38f77a68c0d2e182868e64b085db81aef6c",
+        "acceptance_sha256": "3021813e2891a22da8432a28caca4f18c4d9f976c49b4219be87b2455a596969",
+        "image": "aidevflow-test:1",
+        "status": "FAILED",
+        "tests_executed": true,
+        "return_code": 1,
+        "passed_count": 5,
+        "failed_count": 10,
+        "human_review": "PENDING",
+        "production_deployment": false
+      },
+      "validation_dir": "red_fault_validation"
+    },
+    {
+      "name": "repair_01",
+      "candidate": "repair_01.py",
+      "sha256": "e4ddbb3fd0414c81293b50df9965623267543be0ede11916d44156dd84e7a896",
+      "static_passed": true,
+      "validation": {
+        "expected_tests": 15,
+        "time_utc": "2026-11-21T09:14:37.135454+00:00",
+        "candidate_sha256": "e4ddbb3fd0414c81293b50df9965623267543be0ede11916d44156dd84e7a896",
+        "acceptance_sha256": "3021813e2891a22da8432a28caca4f18c4d9f976c49b4219be87b2455a596969",
+        "image": "aidevflow-test:1",
+        "status": "PASSED",
+        "tests_executed": true,
+        "return_code": 0,
+        "passed_count": 15,
+        "failed_count": 0,
+        "human_review": "PENDING",
+        "production_deployment": false
+      },
+      "validation_dir": "repair_01_validation"
+    }
+  ],
+  "human_review": "PENDING",
+  "production_deployment": false,
+  "updated_utc": "2026-11-21T09:14:38.315585+00:00",
+  "final_candidate": "repair_01.py",
+  "final_sha256": "e4ddbb3fd0414c81293b50df9965623267543be0ede11916d44156dd84e7a896"
+}

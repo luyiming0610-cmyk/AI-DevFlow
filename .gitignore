@@ -1,9 +1,47 @@
 
+# Python virtual environments
 .venv/
-.env
+venv/
+env/
+
+# Python caches
 __pycache__/
-*.pyc
+*.py[cod]
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.hypothesis/
 
+# Coverage / build artifacts
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local execution records
+# Verified submission evidence stays in evidence/
 runs/
+
+# Temporary files and local backups
+*.tmp
+*.bak
+*.bak.*
+*.swp
+*.swo
+*.log
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

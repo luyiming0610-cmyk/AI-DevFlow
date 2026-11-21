@@ -9,4 +9,4 @@ tests/test_analyzer.py::test_upload_statistics PASSED                    [ 33%]
 tests/test_analyzer.py::test_malformed_logs PASSED                       [ 66%]
 tests/test_analyzer.py::test_reject_invalid_timestamp PASSED             [100%]
 
-============================== 3 passed in 0.04s ==============================
+============================== 3 passed in 0.05s ==============================
