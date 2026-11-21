@@ -1,0 +1,20 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0 -- /usr/local/bin/python
+rootdir: /work
+collecting ... collected 12 items
+
+acceptance/test_log_contract.py::test_leap_day_and_date_boundaries PASSED [  8%]
+acceptance/test_log_contract.py::test_time_boundaries PASSED             [ 16%]
+acceptance/test_log_contract.py::test_case_sensitive_levels_and_actions PASSED [ 25%]
+acceptance/test_log_contract.py::test_event_id_allowlist PASSED          [ 33%]
+acceptance/test_log_contract.py::test_unknown_failures_are_not_counted PASSED [ 41%]
+acceptance/test_log_contract.py::test_multievent_reconciliation PASSED   [ 50%]
+acceptance/test_log_contract.py::test_error_details_keep_source_positions PASSED [ 58%]
+acceptance/test_log_contract.py::test_both_error_detail_caps_are_independent PASSED [ 66%]
+acceptance/test_log_contract.py::test_generator_and_text_entry_agree PASSED [ 75%]
+acceptance/test_log_contract.py::test_invalid_bytes_do_not_crash PASSED  [ 83%]
+acceptance/test_log_contract.py::test_crlf_text_has_no_phantom_extra_line PASSED [ 91%]
+acceptance/test_log_contract.py::test_determinism_and_count_invariants PASSED [100%]
+
+============================== 12 passed in 0.17s ==============================
+

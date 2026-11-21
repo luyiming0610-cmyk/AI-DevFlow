@@ -125,13 +125,26 @@ def inspect_candidate(code_path: Path) -> dict:
                         f"未批准的导入：{alias.name}"
                     )
 
+        
         elif isinstance(node, ast.ImportFrom):
+            # Permit the known-safe Python future annotation feature.
+            # Other imports remain subject to the existing allowlist.
+            if (
+                node.module == "__future__"
+                and node.level == 0
+                and len(node.names) == 1
+                and node.names[0].name == "annotations"
+                and node.names[0].asname is None
+            ):
+                continue
+
             module = (node.module or "").split(".")[0]
 
             if node.level or module not in allowed_imports:
                 risks.append(
                     f"未批准的导入：{node.module}"
                 )
+
 
         elif isinstance(node, ast.Call):
             if isinstance(node.func, ast.Name):

@@ -386,3 +386,47 @@ evidence/real_api/20261121-102456-2bf362/
 两项实验均未自动部署代码，人工审核状态仍为 PENDING。
 
 最终交付前仍需确认 GitHub CI 实际运行结果、Part A 与当前实现状态的一致性，以及提交包的完整性。
+
+
+## 附录：补充独立验收与门禁回归
+
+2026-11-21 对静态质量门禁进行回归验证。
+
+修复内容：
+仅允许合法的
+`from __future__ import annotations`
+通过导入白名单，同时继续禁止未批准导入
+及 eval 等危险调用。
+
+工程单元测试：13 passed。
+
+另外，针对网页实验 C 的已生成候选代码，
+增加 12 项未提供给该次模型生成流程的
+独立补充测试。
+
+候选文件：
+`evidence/real_api/20261121-102456-2bf362/round_01/candidate.py`
+
+候选 SHA256：
+`242c45fbc7cbb358d191a825092bf5458edfb6b8b1b45b4bfe4811e80afc8b5a`
+
+补充测试 SHA256：
+`df0bc4e4e5d9991d895f4379b20b0ba3afad786a43d3124ce6bf79a9b10f7afa`
+
+独立 Docker 验收：
+12 passed，0 failed，状态 PASSED。
+
+原始证据：
+`evidence/holdout/20261121-102456-2bf362/`
+
+说明：
+补充用例在原候选生成后编写，
+未发送给该次 Planner、Developer、Repair。
+这是单一业务场景的补充边界验证，
+并非真实生产数据评测，也不代表多任务泛化性能。
+
+业务价值说明：
+`reports/business_value.md`
+
+人工审核：PENDING。
+生产部署：False。

@@ -32,7 +32,7 @@ jobs:
 
       - name: Compile Python source
         run: |
-          python -m compileall -q agents core tests experiments
+          python -m compileall -q agents core tests experiments acceptance pages tools
           python -m py_compile main.py dashboard.py review.py
 
       - name: Run legacy MOCK pipeline
@@ -162,6 +162,54 @@ jobs:
               print(f"{stage}: 15/15 passed.")
 
           print("Docker red-green replay verified.")
+          PY
+
+    
+      - name: Verify supplemental holdout tests
+        run: |
+          python -m core.isolated_tester \
+            --candidate evidence/real_api/20261121-102456-2bf362/round_01/candidate.py \
+            --acceptance acceptance/test_log_holdout.py \
+            --output ci_evidence/holdout
+
+      - name: Verify holdout counts and source hashes
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path("ci_evidence/holdout/validation.json")
+              .read_text(encoding="utf-8")
+          )
+
+          candidate = Path(
+              "evidence/real_api/"
+              "20261121-102456-2bf362/"
+              "round_01/candidate.py"
+          )
+
+          acceptance = Path(
+              "acceptance/test_log_holdout.py"
+          )
+
+          def sha256(path):
+              return hashlib.sha256(
+                  path.read_bytes()
+              ).hexdigest()
+
+          assert report["status"] == "PASSED", report
+          assert report["tests_executed"] is True
+          assert report["expected_tests"] == 12
+          assert report["passed_count"] == 12
+          assert report["failed_count"] == 0
+          assert report["candidate_sha256"] == sha256(candidate)
+          assert report["acceptance_sha256"] == sha256(acceptance)
+          assert report["human_review"] == "PENDING"
+          assert report["production_deployment"] is False
+
+          print("Supplemental holdout: 12/12 PASSED")
           PY
 
       - name: Upload Docker evidence

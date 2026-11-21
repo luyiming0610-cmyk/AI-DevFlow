@@ -75,7 +75,11 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def run_candidate(candidate: Path, output_dir: Path) -> dict:
+def run_candidate(
+    candidate: Path,
+    output_dir: Path,
+    acceptance_file: Path | None = None,
+) -> dict:
     """
     Run acceptance tests inside a restricted Docker container.
 
@@ -84,7 +88,26 @@ def run_candidate(candidate: Path, output_dir: Path) -> dict:
     candidate = candidate.resolve()
     output_dir = output_dir.resolve()
 
-    acceptance = ROOT / "acceptance" / "test_log_contract.py"
+    
+    acceptance = (
+        acceptance_file
+        if acceptance_file is not None
+        else ROOT / "acceptance" / "test_log_contract.py"
+    ).resolve()
+
+    trusted_dir = (ROOT / "acceptance").resolve()
+
+    if (
+        acceptance.parent != trusted_dir
+        or acceptance.name not in {
+            "test_log_contract.py",
+            "test_log_holdout.py",
+        }
+    ):
+        raise ValueError(
+            "仅允许项目内已批准的验收测试文件。"
+        )
+
 
     if not candidate.is_file():
         raise FileNotFoundError(
@@ -352,21 +375,33 @@ def run_candidate(candidate: Path, output_dir: Path) -> dict:
     return save(log)
 
 
+
 def main() -> int:
+    """命令行入口：在 Docker 中执行可信验收测试。"""
+
     parser = argparse.ArgumentParser(
-        description="隔离验证真实 AI 候选代码"
+        description="AI DevFlow｜Docker 隔离测试"
     )
 
     parser.add_argument(
         "--candidate",
         required=True,
         type=Path,
+        help="需要验证的 AI 候选代码路径",
     )
 
     parser.add_argument(
         "--output",
         required=True,
         type=Path,
+        help="测试日志及结果输出目录",
+    )
+
+    parser.add_argument(
+        "--acceptance",
+        type=Path,
+        default=None,
+        help="可选验收测试文件；默认运行正式 15 项测试",
     )
 
     args = parser.parse_args()
@@ -374,6 +409,7 @@ def main() -> int:
     result = run_candidate(
         args.candidate,
         args.output,
+        args.acceptance,
     )
 
     print(

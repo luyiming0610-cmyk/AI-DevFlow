@@ -54,7 +54,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pytest tests -q
 ```
 
-截至 2026 年 11 月 21 日，本地已验证 9 项工程测试通过。
+截至 2026 年 11 月 21 日，本地已验证 13 项工程测试通过。
 
 ## 4. 真实 DeepSeek 自动研发流水线
 
@@ -360,3 +360,26 @@ CI 配置主要覆盖离线 MOCK 流水线和工程测试。新版 Docker 验收
 - GitHub Actions：https://docs.github.com/actions
 - DeepSeek API：https://api-docs.deepseek.com/
 - Streamlit：https://docs.streamlit.io/
+
+
+## 补充独立验收
+
+除原有 15 项业务验收外，新增 12 项独立边界测试。
+
+测试文件：
+`acceptance/test_log_holdout.py`
+
+可在 Docker 环境中运行：
+
+```powershell
+python -m core.isolated_tester --candidate evidence/real_api/20261121-102456-2bf362/round_01/candidate.py --acceptance acceptance/test_log_holdout.py --output runs/holdout_replay
+```
+
+2026-11-21 本地实测：12 passed。
+
+工程单元测试现为 13 项。
+补充验证与原有真实 API 实验分开记录，
+不需要再次调用 DeepSeek。
+
+业务价值与指标口径：
+`reports/business_value.md`
