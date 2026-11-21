@@ -220,6 +220,46 @@ docker image inspect aidevflow-test:1
 
 该命令将产生新的实验记录和真实 API 费用。
 
+
+### 实验 C：Streamlit 网页端完整自动研发
+
+任务编号：20261121-102456-2bf362
+
+Streamlit 的「新建研发任务」页面现已接入
+`core.auto_pipeline.run_pipeline()`。
+
+启动命令：
+
+```powershell
+python -m streamlit run dashboard.py
+```
+
+在左侧导航进入「新建研发任务」，可以：
+
+- 查看已绑定的 B11 业务需求
+- 设置自动修复上限
+- 显式确认真实 DeepSeek API 调用
+- 启动完整研发流水线
+- 查看每轮源码、测试和修复记录
+- 下载候选代码及报告
+
+最新实测：
+
+- 真实 API Token：17,066
+- 自动修复：1 次
+- 最终静态检查：通过
+- Docker Pytest：15/15 通过
+- 人工审核：PENDING
+
+原始证据：
+
+`evidence/real_api/20261121-102456-2bf362/`
+
+当前网页固定支持日志分析这一业务场景。
+其他场景需要各自独立的验收规范，
+不能直接复用现有 15 项测试。
+
+
 ## 7. 离线 MOCK 基线
 
 项目保留早期 MOCK 流水线，用于无 API Key 的基础研发流程演示。

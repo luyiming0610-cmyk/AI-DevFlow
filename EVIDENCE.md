@@ -297,7 +297,83 @@ GitHub Actions 配置位于：
 7. DeepSeek API 官方文档：https://api-docs.deepseek.com/
 8. Streamlit 官方文档：https://docs.streamlit.io/
 
-## 十一、结论
+
+## 十一、实验 C：网页端真实自动研发闭环
+
+### 11.1 实验目标
+
+验证 Streamlit 网页能否调用已经完成的真实
+DeepSeek 自动研发编排器，而不只是生成代码。
+
+完整链路：
+
+网页提交任务 → Planner → Developer →
+静态质量门禁 → Repair → Docker Pytest →
+质量报告 → 等待人工审核。
+
+### 11.2 实际运行信息
+
+- 任务编号：20261121-102456-2bf362
+- 执行方式：Streamlit 网页
+- 模型：deepseek-flash
+- 真实 API Token：17,066
+- 自动修复：1 次
+- 最终静态检查：通过
+- Docker 验收：15 passed，0 failed
+- 最终状态：TESTS_PASSED_REVIEW_PENDING
+- 人工审核：PENDING
+- 生产部署：False
+
+### 11.3 逐轮结果
+
+| 阶段 | 实际结果 |
+|---|---|
+| Planner | 真实 API 规划成功 |
+| Developer | 真实 API 生成代码 |
+| Round 0 | 静态检查失败，功能测试未执行 |
+| Repair 1 | DeepSeek 自动生成修复代码 |
+| Round 1 | 静态检查通过 |
+| Docker Pytest | 15/15 通过 |
+
+本实验确认了网页端的真实自动修复与回归测试能力。
+
+Round 0 属于静态检查失败，不应描述为
+Pytest 失败。Pytest 红灯到绿灯的独立证据
+见实验 B。
+
+### 11.4 原始证据
+
+evidence/real_api/20261121-102456-2bf362/
+
+其中包含：
+
+- requirement.md：需求快照
+- acceptance_snapshot.py：验收用例快照
+- plan.md：开发计划
+- result.json：完整执行状态和 Token
+- report.md：中文报告
+- round_00/：原始候选与静态失败记录
+- round_01/candidate.py：修复后的候选
+- round_01/validation/pytest.txt：真实测试日志
+- round_01/validation/validation.json：机器验收结果
+
+所有自动检查通过后仍然等待人工审核，
+未执行代码合并或生产部署。
+
+### 11.5 三组真实实验总结
+
+| 实验 | 核心证明 | 结果 |
+|---|---|---|
+| A | Planner、Developer 与两轮 Repair | 15/15 |
+| B | 人为故障注入、真实 Pytest 失败与 AI 修复 | 10 failed → 15 passed |
+| C | 网页端自动研发与一次真实修复 | 15/15 |
+
+三组实验记录的 Token 合计为 49,573。
+这是这三组实验的合计，不代表整个项目
+所有 API 调用的累计费用。
+
+
+## 十二、结论
 
 本项目已完成 B11 Part B 所要求的最小 Agent 研发闭环，并通过真实 API 与 Docker 测试提供可核验的结果。
 
