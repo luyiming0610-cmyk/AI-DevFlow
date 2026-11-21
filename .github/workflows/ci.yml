@@ -164,7 +164,6 @@ jobs:
           print("Docker red-green replay verified.")
           PY
 
-    
       - name: Verify supplemental holdout tests
         run: |
           python -m core.isolated_tester \

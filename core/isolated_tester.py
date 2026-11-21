@@ -88,7 +88,6 @@ def run_candidate(
     candidate = candidate.resolve()
     output_dir = output_dir.resolve()
 
-    
     acceptance = (
         acceptance_file
         if acceptance_file is not None

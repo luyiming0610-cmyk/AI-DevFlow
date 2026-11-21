@@ -125,7 +125,6 @@ def inspect_candidate(code_path: Path) -> dict:
                         f"未批准的导入：{alias.name}"
                     )
 
-        
         elif isinstance(node, ast.ImportFrom):
             # Permit the known-safe Python future annotation feature.
             # Other imports remain subject to the existing allowlist.
