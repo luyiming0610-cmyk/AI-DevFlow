@@ -1,0 +1,93 @@
+{
+  "task_id": "20261121-102456-2bf362",
+  "created_at": "2026-11-21T10:24:56.209955+00:00",
+  "mode": "api",
+  "model": "deepseek-flash",
+  "status": "TESTS_PASSED_REVIEW_PENDING",
+  "contract_sha256": "4f7797c65f66670019c7ec19de1f33cfea1480887fac884fb5edfd9d8681e877",
+  "acceptance_sha256": "3021813e2891a22da8432a28caca4f18c4d9f976c49b4219be87b2455a596969",
+  "max_repairs": 2,
+  "api_calls": [
+    {
+      "stage": "planner",
+      "time_utc": "2026-11-21T10:25:00.363588+00:00",
+      "usage": {
+        "prompt_tokens": 1385,
+        "completion_tokens": 671,
+        "total_tokens": 2056
+      }
+    },
+    {
+      "stage": "developer",
+      "time_utc": "2026-11-21T10:25:09.063780+00:00",
+      "usage": {
+        "prompt_tokens": 4020,
+        "completion_tokens": 2511,
+        "total_tokens": 6531
+      }
+    },
+    {
+      "stage": "repair_1",
+      "time_utc": "2026-11-21T10:25:16.517227+00:00",
+      "usage": {
+        "prompt_tokens": 5983,
+        "completion_tokens": 2496,
+        "total_tokens": 8479
+      }
+    }
+  ],
+  "rounds": [
+    {
+      "round": 0,
+      "candidate": "round_00/candidate.py",
+      "sha256": "45c0cc17a227221d9e82f522564dd3af3b537c09fc5f7043c8365ae7b3af297c",
+      "checks": {
+        "python_syntax": true,
+        "ruff_lint": false,
+        "basic_security_scan": false,
+        "notes": [
+          "未批准的导入：__future__",
+          "F401 [*] `collections.OrderedDict` imported but unused\n  --> runs\\interactive_tasks\\20261121-102456-2bf362\\round_00\\candidate.py:14:25\n   |\n13 | import re\n14 | from collections import OrderedDict\n   |                         ^^^^^^^^^^^\n15 | from datetime import date as _date\n16 | from typing import Any, Iterable\n   |\nhelp: Remove unused import: `collections.OrderedDict`\n   |\n13 | import re\n   - from collections import OrderedDict\n14 | from datetime import date as _date\n   |\n\nFound 1 error.\n[*] 1 fixable with `--fix`.\n"
+        ],
+        "contract_functions": true,
+        "all_passed": false
+      },
+      "validation": null,
+      "validation_dir": null
+    },
+    {
+      "round": 1,
+      "candidate": "round_01/candidate.py",
+      "sha256": "242c45fbc7cbb358d191a825092bf5458edfb6b8b1b45b4bfe4811e80afc8b5a",
+      "checks": {
+        "python_syntax": true,
+        "ruff_lint": true,
+        "basic_security_scan": true,
+        "notes": [],
+        "contract_functions": true,
+        "all_passed": true
+      },
+      "validation": {
+        "expected_tests": 15,
+        "time_utc": "2026-11-21T10:25:16.745399+00:00",
+        "candidate_sha256": "242c45fbc7cbb358d191a825092bf5458edfb6b8b1b45b4bfe4811e80afc8b5a",
+        "acceptance_sha256": "3021813e2891a22da8432a28caca4f18c4d9f976c49b4219be87b2455a596969",
+        "image": "aidevflow-test:1",
+        "status": "PASSED",
+        "tests_executed": true,
+        "return_code": 0,
+        "passed_count": 15,
+        "failed_count": 0,
+        "human_review": "PENDING",
+        "production_deployment": false
+      },
+      "validation_dir": "round_01/validation"
+    }
+  ],
+  "tests_executed": true,
+  "human_review": "PENDING",
+  "production_deployment": false,
+  "updated_at": "2026-11-21T10:25:23.286006+00:00",
+  "final_candidate": "round_01/candidate.py",
+  "final_candidate_sha256": "242c45fbc7cbb358d191a825092bf5458edfb6b8b1b45b4bfe4811e80afc8b5a"
+}

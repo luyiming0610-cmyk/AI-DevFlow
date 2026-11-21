@@ -1,0 +1,20 @@
+静态检查失败：
+未批准的导入：__future__
+F401 [*] `collections.OrderedDict` imported but unused
+  --> runs\interactive_tasks\20261121-102456-2bf362\round_00\candidate.py:14:25
+   |
+13 | import re
+14 | from collections import OrderedDict
+   |                         ^^^^^^^^^^^
+15 | from datetime import date as _date
+16 | from typing import Any, Iterable
+   |
+help: Remove unused import: `collections.OrderedDict`
+   |
+13 | import re
+   - from collections import OrderedDict
+14 | from datetime import date as _date
+   |
+
+Found 1 error.
+[*] 1 fixable with `--fix`.
